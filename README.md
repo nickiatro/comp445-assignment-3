@@ -1,1 +1,1 @@
-# comp445-assignment-1
+# COMP 445 Assignment #1
