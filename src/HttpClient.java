@@ -20,18 +20,27 @@ public class HttpClient {
 		PrintWriter pw = null;
 		BufferedReader reader = null;
 		Scanner keyboard = new Scanner(System.in);
-		String hostName = "httpbin.org";
+		String hostName = "";
 		int port = 80;
+		
+		System.out.print("Please enter a host name: ");
+		hostName = keyboard.nextLine();
+		
+		while (hostName.equals("")) {
+			System.err.print("\nHost name is required.");
+			System.out.print("\nPlease enter a host name: ");
+			hostName = keyboard.nextLine();
+		}
 		
 		try {
 			socket = new Socket(hostName, port);
 		}
 		catch(UnknownHostException e1) {
-			System.err.println(e1.getMessage());
+			System.err.println("Unknown host... Program will terminate");
 			System.exit(1);
 		}
 		catch(IOException e2) {
-			System.err.println(e2.getMessage());
+			System.err.println("I/O error... Program will terminate");
 			System.exit(1);
 		}
 	}
