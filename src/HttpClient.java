@@ -5,14 +5,15 @@ import java.util.Scanner;
 import java.io.PrintWriter;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 
 public class HttpClient {
 
-	public void getOperation(Socket socket, PrintWriter pw, BufferedReader reader) {
+	public static void getOperation(Socket socket, PrintWriter pw, BufferedReader reader) {
 	
 	}
 	
-	public void postOperation() {
+	public static void postOperation(Socket socket, PrintWriter pw, BufferedReader reader) {
 		
 	}
 	
@@ -74,6 +75,31 @@ public class HttpClient {
 		catch (IOException e) {
 			System.err.println("I/O error... Program will terminate");
 			System.exit(1);
+		}
+		
+		try {
+			reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+		}
+		catch (IOException e) {
+			System.err.println("I/O error... Program will terminate");
+			System.exit(1);
+		}
+		
+		String method = "";
+		System.out.print("GET or POST?: ");
+		method = keyboard.nextLine();
+		
+		while (!method.equalsIgnoreCase("get") && !method.equalsIgnoreCase("post")) {
+			System.err.println("\nPlease enter GET or POST to continue");
+			System.out.print("GET OR POST?: ");
+			method = keyboard.nextLine();
+		} 
+		
+		if (method.equalsIgnoreCase("get")) {
+			getOperation(socket, pw, reader);
+		}
+		else if (method.equalsIgnoreCase("post")) {
+			postOperation(socket, pw, reader);
 		}
 	}
 	
