@@ -8,7 +8,7 @@ import java.io.IOException;
 
 public class HttpClient {
 
-	public void getOperation(Socket socket, PrintWriter writer, BufferedReader reader) {
+	public void getOperation(Socket socket, PrintWriter pw, BufferedReader reader) {
 	
 	}
 	
@@ -64,6 +64,14 @@ public class HttpClient {
 			System.exit(1);
 		}
 		catch(IOException e2) {
+			System.err.println("I/O error... Program will terminate");
+			System.exit(1);
+		}
+		
+		try {
+			pw = new PrintWriter(socket.getOutputStream());
+		}
+		catch (IOException e) {
 			System.err.println("I/O error... Program will terminate");
 			System.exit(1);
 		}
