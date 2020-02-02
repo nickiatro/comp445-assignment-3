@@ -8,9 +8,32 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 public class HttpClient {
+	
+	private static Scanner keyboard = new Scanner(System.in);
 
 	public static void getOperation(Socket socket, PrintWriter pw, BufferedReader reader) {
-	
+		String resId = "";
+		String version = "";
+		
+		System.out.print("Please specify the resource ID: ");
+		resId = keyboard.nextLine();
+		
+		while (resId.equals("")) {
+			System.err.println("Resource ID is required...");
+			System.out.print("Please specify the resource ID: ");
+			resId = keyboard.nextLine();
+		}
+		
+		System.out.println("Please specify the HTTP version in the format HTTP/X.X, where X is a digit: ");
+		version = keyboard.nextLine();
+		
+		while (version.equals("") || !version.matches("HTTP\\/\\d.\\d")) {
+			System.err.println("HTTP Version is required...");
+			System.out.print("Please specify the HTTP version in the format HTTP/X.X, where X is a digit: ");
+			version = keyboard.nextLine();
+		}
+		
+		
 	}
 	
 	public static void postOperation(Socket socket, PrintWriter pw, BufferedReader reader) {
@@ -21,7 +44,6 @@ public class HttpClient {
 		Socket socket = null;
 		PrintWriter pw = null;
 		BufferedReader reader = null;
-		Scanner keyboard = new Scanner(System.in);
 		String hostName = "";
 		int port = 0;
 		
