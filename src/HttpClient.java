@@ -24,7 +24,7 @@ public class HttpClient {
 			resId = keyboard.nextLine();
 		}
 		
-		System.out.println("Please specify the HTTP version in the format HTTP/X.X, where X is a digit: ");
+		System.out.print("Please specify the HTTP version in the format HTTP/X.X, where X is a digit: ");
 		version = keyboard.nextLine();
 		
 		while (version.equals("") || !version.matches("HTTP\\/\\d.\\d")) {
