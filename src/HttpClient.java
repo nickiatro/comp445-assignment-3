@@ -34,13 +34,22 @@ public class HttpClient {
 			version = keyboard.nextLine();
 		}
 		
+		System.out.println("");
+		
 		pw.write("GET " + resId + " " + version +"\r\n");
 		pw.write("\r\n");
 		pw.flush();
 		socket.shutdownOutput();
 		
+		output = reader.readLine();
+		System.out.println(output);
 		
+		while (output != null) {
+			output = reader.readLine();
+			System.out.println(output);
+		}
 		
+		socket.shutdownInput();
 	}
 	
 	public static void postOperation(Socket socket, PrintWriter pw, BufferedReader reader) {
