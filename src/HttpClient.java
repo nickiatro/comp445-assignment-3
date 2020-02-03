@@ -11,9 +11,10 @@ public class HttpClient {
 	
 	private static Scanner keyboard = new Scanner(System.in);
 
-	public static void getOperation(Socket socket, PrintWriter pw, BufferedReader reader) {
+	public static void getOperation(Socket socket, PrintWriter pw, BufferedReader reader) throws IOException {
 		String resId = "";
 		String version = "";
+		String output = "";
 		
 		System.out.print("Please specify the resource ID: ");
 		resId = keyboard.nextLine();
@@ -33,6 +34,12 @@ public class HttpClient {
 			version = keyboard.nextLine();
 		}
 		
+		pw.write("GET " + resId + " " + version +"\r\n");
+		pw.write("\r\n");
+		pw.flush();
+		socket.shutdownOutput();
+		
+		
 		
 	}
 	
@@ -45,7 +52,7 @@ public class HttpClient {
 		PrintWriter pw = null;
 		BufferedReader reader = null;
 		String hostName = "";
-		int port = 0;
+		int port = 80;
 		
 		System.out.print("Please enter a host name: ");
 		hostName = keyboard.nextLine();
@@ -54,29 +61,6 @@ public class HttpClient {
 			System.err.print("\nHost name is required.");
 			System.out.print("\nPlease enter a host name: ");
 			hostName = keyboard.nextLine();
-		}
-		
-		System.out.print("Would you like to use the default value 80? [y/n]: ");
-		String str = keyboard.nextLine();
-		
-		while (!str.equalsIgnoreCase("n") && !str.equalsIgnoreCase("y")) {
-			System.err.println("\nPlease enter y or n to continue");
-			System.out.print("Would you like to use the default value 80? [y/n]: ");
-			str = keyboard.nextLine();
-		}
-		
-		if (str.equalsIgnoreCase("n")) {
-			System.out.print("Please enter a port number: ");
-			try{
-				port = keyboard.nextInt();
-			}
-			catch (InputMismatchException e) {
-				System.err.println("Input not an integer... Program will terminate");
-				System.exit(1);
-			}
-		}
-		else if (str.equalsIgnoreCase("y")) {
-			port = 80;
 		}
 		
 		try {
@@ -118,7 +102,13 @@ public class HttpClient {
 		} 
 		
 		if (method.equalsIgnoreCase("get")) {
-			getOperation(socket, pw, reader);
+			try {
+				getOperation(socket, pw, reader);
+			}
+			catch (IOException e) {
+				System.err.println("I/O error... Program will terminate");
+				System.exit(1);
+			}
 		}
 		else if (method.equalsIgnoreCase("post")) {
 			postOperation(socket, pw, reader);
