@@ -1,4 +1,6 @@
+import java.net.MalformedURLException;
 import java.net.Socket;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.Scanner;
 import java.io.PrintWriter;
@@ -8,35 +10,16 @@ import java.io.InputStreamReader;
 
 public class HttpClient {
 	
-	private static Scanner keyboard = new Scanner(System.in);
 
-	public static void getOperation(Socket socket, PrintWriter pw, BufferedReader reader) throws IOException {
-		String resId = "";
-		String version = "";
+	public static void getOperation(Socket socket, PrintWriter pw, BufferedReader reader, URL url) throws IOException {
+		String resId = url.getPath() + ((url.getQuery() != null) ? url.getQuery() : "") ;
+		String version = "HTTP/1.0";
 		String output = "";
-		
-		System.out.print("Please specify the resource ID: ");
-		resId = keyboard.nextLine();
-		
-		while (resId.equals("")) {
-			System.err.println("Resource ID is required...");
-			System.out.print("Please specify the resource ID: ");
-			resId = keyboard.nextLine();
-		}
-		
-		System.out.print("Please specify the HTTP version in the format HTTP/X.X, where X is a digit: ");
-		version = keyboard.nextLine();
-		
-		while (version.equals("") || !version.matches("HTTP\\/\\d.\\d")) {
-			System.err.println("HTTP Version is required...");
-			System.out.print("Please specify the HTTP version in the format HTTP/X.X, where X is a digit: ");
-			version = keyboard.nextLine();
-		}
 		
 		System.out.println("");
 		
 		pw.write("GET " + resId + " " + version +"\r\n");
-		pw.write("\r\n");
+		pw.write("Host: " + socket.getInetAddress().getHostName() + "\r\n\r\n" );
 		pw.flush();
 		socket.shutdownOutput();
 		
@@ -51,32 +34,11 @@ public class HttpClient {
 		socket.shutdownInput();
 	}
 	
-	public static void postOperation(Socket socket, PrintWriter pw, BufferedReader reader) throws IOException {
-		String resId = "";
-		String version = "";
+	public static void postOperation(Socket socket, PrintWriter pw, BufferedReader reader, URL url) throws IOException {
+		String resId = url.getHost();
+		String version = "HTTP/1.0";
 		String data = "";
 		String output = "";
-		
-		System.out.print("Please specify the resource ID: ");
-		resId = keyboard.nextLine();
-		
-		while (resId.equals("")) {
-			System.err.println("Resource ID is required...");
-			System.out.print("Please specify the resource ID: ");
-			resId = keyboard.nextLine();
-		}
-		
-		System.out.print("Please specify the HTTP version in the format HTTP/X.X, where X is a digit: ");
-		version = keyboard.nextLine();
-		
-		while (version.equals("") || !version.matches("HTTP\\/\\d.\\d")) {
-			System.err.println("HTTP Version is required...");
-			System.out.print("Please specify the HTTP version in the format HTTP/X.X, where X is a digit: ");
-			version = keyboard.nextLine();
-		}
-		
-		System.out.print("Please specify the data to be sent in the message body: ");
-		data = keyboard.nextLine();
 		
 		System.out.println("");
 		
@@ -104,17 +66,22 @@ public class HttpClient {
 		Socket socket = null;
 		PrintWriter pw = null;
 		BufferedReader reader = null;
+		URL url = null;
 		String hostName = "";
 		int port = 80;
 		
-		System.out.print("Please enter a host name: ");
-		hostName = keyboard.nextLine();
-		
-		while (hostName.equals("")) {
-			System.err.print("\nHost name is required.");
-			System.out.print("\nPlease enter a host name: ");
-			hostName = keyboard.nextLine();
+		if (!args[0].equals("httpc") || (!args[1].equals("get") && !args[1].equals("post"))) {
+			System.exit(1);
 		}
+		
+		try {
+			url = new URL(args[args.length - 1]);
+		} catch (MalformedURLException e) {
+			System.out.println("Bad URL... program will terminate");
+			System.exit(1);
+		}
+		
+		hostName = url.getHost();
 		
 		try {
 			socket = new Socket(hostName, port);
@@ -144,19 +111,12 @@ public class HttpClient {
 			System.exit(1);
 		}
 		
-		String method = "";
-		System.out.print("GET or POST?: ");
-		method = keyboard.nextLine();
+		String method = args[1];
 		
-		while (!method.equalsIgnoreCase("get") && !method.equalsIgnoreCase("post")) {
-			System.err.println("\nPlease enter GET or POST to continue");
-			System.out.print("GET OR POST?: ");
-			method = keyboard.nextLine();
-		} 
 		
 		if (method.equalsIgnoreCase("get")) {
 			try {
-				getOperation(socket, pw, reader);
+				getOperation(socket, pw, reader, url);
 			}
 			catch (IOException e) {
 				System.err.println("I/O error... Program will terminate");
@@ -165,7 +125,7 @@ public class HttpClient {
 		}
 		else if (method.equalsIgnoreCase("post")) {
 			try {
-				postOperation(socket, pw, reader);
+				postOperation(socket, pw, reader, url);
 			}
 			catch (IOException e) {
 				System.err.println("I/O error... Program will terminate");
