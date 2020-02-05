@@ -1,6 +1,5 @@
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.InputMismatchException;
 import java.util.Scanner;
 import java.io.PrintWriter;
 import java.io.BufferedReader;
@@ -52,8 +51,53 @@ public class HttpClient {
 		socket.shutdownInput();
 	}
 	
-	public static void postOperation(Socket socket, PrintWriter pw, BufferedReader reader) {
+	public static void postOperation(Socket socket, PrintWriter pw, BufferedReader reader) throws IOException {
+		String resId = "";
+		String version = "";
+		String data = "";
+		String output = "";
 		
+		System.out.print("Please specify the resource ID: ");
+		resId = keyboard.nextLine();
+		
+		while (resId.equals("")) {
+			System.err.println("Resource ID is required...");
+			System.out.print("Please specify the resource ID: ");
+			resId = keyboard.nextLine();
+		}
+		
+		System.out.print("Please specify the HTTP version in the format HTTP/X.X, where X is a digit: ");
+		version = keyboard.nextLine();
+		
+		while (version.equals("") || !version.matches("HTTP\\/\\d.\\d")) {
+			System.err.println("HTTP Version is required...");
+			System.out.print("Please specify the HTTP version in the format HTTP/X.X, where X is a digit: ");
+			version = keyboard.nextLine();
+		}
+		
+		System.out.print("Please specify the data to be sent in the message body: ");
+		data = keyboard.nextLine();
+		
+		System.out.println("");
+		
+		pw.write("POST " + resId + " " + version +"\r\n");
+		pw.write("Host: "+ socket.getInetAddress().getHostName() +" \r\n");
+		pw.write("Content-Length: " + data.length() + "\r\n");
+		pw.write("Content-Type: application/x-www-form-urlencoded \r\n");
+		pw.write("\r\n");
+		pw.write(data);
+		pw.flush();
+		socket.shutdownOutput();
+		
+		output = reader.readLine();
+		System.out.println(output);
+		
+		while (output != null) {
+			output = reader.readLine();
+			System.out.println(output);
+		}
+		
+		socket.shutdownInput();
 	}
 	
 	public static void main(String[] args) {
@@ -120,7 +164,13 @@ public class HttpClient {
 			}
 		}
 		else if (method.equalsIgnoreCase("post")) {
-			postOperation(socket, pw, reader);
+			try {
+				postOperation(socket, pw, reader);
+			}
+			catch (IOException e) {
+				System.err.println("I/O error... Program will terminate");
+				System.exit(1);
+			}
 		}
 	}
 	
