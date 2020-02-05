@@ -19,7 +19,7 @@ public class HttpClient {
 		System.out.println("");
 		
 		pw.write("GET " + resId + " " + version +"\r\n");
-		pw.write("Host: " + socket.getInetAddress().getHostName() + "\r\n\r\n" );
+		pw.write("Host: " + url.getHost() + "\r\n\r\n" );
 		pw.flush();
 		socket.shutdownOutput();
 		
@@ -35,7 +35,7 @@ public class HttpClient {
 	}
 	
 	public static void postOperation(Socket socket, PrintWriter pw, BufferedReader reader, URL url) throws IOException {
-		String resId = url.getHost();
+		String resId = url.getPath() + ((url.getQuery() != null) ? url.getQuery() : "") ;
 		String version = "HTTP/1.0";
 		String data = "";
 		String output = "";
@@ -43,7 +43,7 @@ public class HttpClient {
 		System.out.println("");
 		
 		pw.write("POST " + resId + " " + version +"\r\n");
-		pw.write("Host: "+ socket.getInetAddress().getHostName() +" \r\n");
+		pw.write("Host: " + url.getHost()  + " \r\n");
 		pw.write("Content-Length: " + data.length() + "\r\n");
 		pw.write("Content-Type: application/x-www-form-urlencoded \r\n");
 		pw.write("\r\n");
