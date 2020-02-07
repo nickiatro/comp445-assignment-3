@@ -70,8 +70,13 @@ public class HttpClient {
 		String hostName = "";
 		int port = 80;
 		
-		if (!args[0].equals("httpc") || (!args[1].equals("get") && !args[1].equals("post"))) {
+		if (!args[0].equals("httpc") || (!args[1].equals("get") && !args[1].equals("post") && !args[1].equals("help"))) {
 			System.exit(1);
+		}
+		
+		if (args[1].equals("help")) {
+			System.out.println("httpc is a curl-like application but supports HTTP protocol only.\nUsage:\n    httpc command [arguments]\nThe commands are:\nget \texecutes a HTTP GET request and prints the response.\npost \texecutes a HTTP POST request and prints the response.\nhelp\tprints this screen.\n\nUse \"httpc help [command]\" for more information about a command.");
+			System.exit(0);
 		}
 		
 		try {
