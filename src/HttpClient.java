@@ -11,7 +11,7 @@ import java.io.InputStreamReader;
 public class HttpClient {
 	
 
-	public static void getOperation(Socket socket, PrintWriter pw, BufferedReader reader, URL url) throws IOException {
+	public static void getOperation(Socket socket, PrintWriter pw, BufferedReader reader, URL url, boolean verbose) throws IOException {
 		String resId = url.getPath() + ((url.getQuery() != null) ? url.getQuery() : "") ;
 		String version = "HTTP/1.0";
 		String output = "";
@@ -23,18 +23,19 @@ public class HttpClient {
 		pw.flush();
 		socket.shutdownOutput();
 		
-		output = reader.readLine();
-		System.out.println(output);
-		
-		while (output != null) {
+		if (verbose == true) {
 			output = reader.readLine();
 			System.out.println(output);
+			
+			while (output != null) {
+				output = reader.readLine();
+				System.out.println(output);
+			}
 		}
-		
 		socket.shutdownInput();
 	}
 	
-	public static void postOperation(Socket socket, PrintWriter pw, BufferedReader reader, URL url) throws IOException {
+	public static void postOperation(Socket socket, PrintWriter pw, BufferedReader reader, URL url, boolean verbose) throws IOException {
 		String resId = url.getPath() + ((url.getQuery() != null) ? url.getQuery() : "") ;
 		String version = "HTTP/1.0";
 		String data = "";
@@ -51,14 +52,15 @@ public class HttpClient {
 		pw.flush();
 		socket.shutdownOutput();
 		
-		output = reader.readLine();
-		System.out.println(output);
-		
-		while (output != null) {
+		if (verbose == true) {
 			output = reader.readLine();
 			System.out.println(output);
+			
+			while (output != null) {
+				output = reader.readLine();
+				System.out.println(output);
+			}
 		}
-		
 		socket.shutdownInput();
 	}
 	
@@ -127,21 +129,20 @@ public class HttpClient {
 			System.exit(1);
 		}
 		
-		String method = args[1];
-		
-		
-		if (method.equalsIgnoreCase("get")) {
+		if (args[1].equalsIgnoreCase("get")) {
 			try {
-				getOperation(socket, pw, reader, url);
+				if (args[2].equals("-v"))
+					getOperation(socket, pw, reader, url, true);
 			}
 			catch (IOException e) {
 				System.err.println("I/O error... Program will terminate");
 				System.exit(1);
 			}
 		}
-		else if (method.equalsIgnoreCase("post")) {
+		else if (args[1].equalsIgnoreCase("post")) {
 			try {
-				postOperation(socket, pw, reader, url);
+				if (args[2].equals("-v"))
+					postOperation(socket, pw, reader, url, true);
 			}
 			catch (IOException e) {
 				System.err.println("I/O error... Program will terminate");
