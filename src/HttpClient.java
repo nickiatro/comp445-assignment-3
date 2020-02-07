@@ -74,8 +74,14 @@ public class HttpClient {
 			System.exit(1);
 		}
 		
-		if (args[1].equals("help")) {
-			System.out.println("httpc is a curl-like application but supports HTTP protocol only.\nUsage:\n    httpc command [arguments]\nThe commands are:\nget \texecutes a HTTP GET request and prints the response.\npost \texecutes a HTTP POST request and prints the response.\nhelp\tprints this screen.\n\nUse \"httpc help [command]\" for more information about a command.");
+		if (args[1].equals("help") && args.length == 2) {
+			System.out.println("httpc is a curl-like application but supports HTTP protocol only.\nUsage:\n    httpc command [arguments]\nThe commands are:\n    get \texecutes a HTTP GET request and prints the response.\n    post \texecutes a HTTP POST request and prints the response.\n    help\tprints this screen.\n\nUse \"httpc help [command]\" for more information about a command.");
+			System.exit(0);
+		}
+		
+		if (args[1].equals("help") && args[2].equals("get") && args.length == 3) {
+			System.out.println("httpc help get\r\n" + 
+					"usage: httpc get [-v] [-h key:value] URL\nGet executes a HTTP GET request for a given URL.\n  -v\t\tPrints the detail of the response such as protocol, status,\n and headers.\n  -h key:value\tAssociates headers to HTTP Request with the format\n'key:value'.");
 			System.exit(0);
 		}
 		
