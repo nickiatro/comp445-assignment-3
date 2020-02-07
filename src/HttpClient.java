@@ -85,6 +85,11 @@ public class HttpClient {
 			System.exit(0);
 		}
 		
+		if (args[1].equals("help") && args[2].equals("post") && args.length == 3) {
+			System.out.println("httpc help post\r\n" +  
+					"usage: httpc post [-v] [-h key:value] [-d inline-data] [-f file] URL\nPost executes a HTTP POST request for a given URL with inline data or from\nfile.\n\n  -v\t\t  Prints the detail of the response such as protocol, status,\nand headers.\n  -h key:value\t  Associates headers to HTTP Request with the format\n'key:value'.\n  -d string\t  Associates an inline data to the body HTTP POST request.\n  -f file\t  Associates the content of a file to the body HTTP POST\nrequest.\n\nEither [-d] or [-f] can be used but not both.");
+			System.exit(0);
+		}
 		try {
 			url = new URL(args[args.length - 1]);
 		} catch (MalformedURLException e) {
