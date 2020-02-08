@@ -22,7 +22,13 @@ public class HttpClient {
 		System.out.println("");
 		
 		pw.write("GET " + resId + " " + version +"\r\n");
-		pw.write("Host: " + url.getHost() + "\r\n\r\n" );
+		pw.write("Host: " + url.getHost() + "\r\n");
+		if (!headers.isEmpty()) {
+			for (int i = 0; i < headers.size(); i++) {
+				pw.write(headers.get(i) + "\r\n");
+			}
+		}
+		pw.write("\r\n");
 		pw.flush();
 		socket.shutdownOutput();
 		
@@ -49,6 +55,11 @@ public class HttpClient {
 		pw.write("POST " + resId + " " + version +"\r\n");
 		pw.write("Host: " + url.getHost()  + " \r\n");
 		pw.write("Content-Length: " + data.length() + "\r\n");
+		if (!headers.isEmpty()) {
+			for (int i = 0; i < headers.size(); i++) {
+				pw.write(headers.get(i) + "\r\n");
+			}
+		}
 		pw.write("\r\n");
 		pw.write(data);
 		pw.flush();
@@ -156,6 +167,13 @@ public class HttpClient {
 					if (args[i].equals("-v")) {
 						verbose = true;
 					}
+					if (args[i].equals("-h")) {
+						for (int j = i + 1; j < args.length; j++) { 
+							if (args[j].matches(".:.")) {
+								headers.add(args[j]);
+							}
+						}
+					}
 				}	
 				getOperation(socket, pw, reader, url);
 			}
@@ -169,6 +187,13 @@ public class HttpClient {
 				for (int i = 0; i < args.length; i++) {
 					if (args[i].equals("-v")) {
 						verbose = true;
+					}
+					if (args[i].equals("-h")) {
+						for (int j = i + 1; j < args.length; j++) { 
+							if (args[j].matches(".:.")) {
+								headers.add(args[j]);
+							}
+						}
 					}
 				}
 					postOperation(socket, pw, reader, url);
