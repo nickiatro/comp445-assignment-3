@@ -56,8 +56,6 @@ public class HttpClient {
 				length += data.get(i).length();
 			}
 		}
-		System.out.println(length);
-		System.out.println("");
 		
 		pw.write("POST " + resId + " " + version +"\r\n");
 		pw.write("Host: " + url.getHost()  + " \r\n");
