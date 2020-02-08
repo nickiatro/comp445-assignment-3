@@ -2,6 +2,7 @@ import java.net.MalformedURLException;
 import java.net.Socket;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Scanner;
 import java.io.PrintWriter;
 import java.io.BufferedReader;
@@ -10,8 +11,10 @@ import java.io.InputStreamReader;
 
 public class HttpClient {
 	
+	private static boolean verbose = false;
+	private static ArrayList<String> headers = new ArrayList<String>();
 
-	public static void getOperation(Socket socket, PrintWriter pw, BufferedReader reader, URL url, boolean verbose) throws IOException {
+	private static void getOperation(Socket socket, PrintWriter pw, BufferedReader reader, URL url) throws IOException {
 		String resId = url.getPath() + ((url.getQuery() != null) ? url.getQuery() : "") ;
 		String version = "HTTP/1.0";
 		String output = "";
@@ -35,7 +38,7 @@ public class HttpClient {
 		socket.shutdownInput();
 	}
 	
-	public static void postOperation(Socket socket, PrintWriter pw, BufferedReader reader, URL url, boolean verbose) throws IOException {
+	private static void postOperation(Socket socket, PrintWriter pw, BufferedReader reader, URL url) throws IOException {
 		String resId = url.getPath() + ((url.getQuery() != null) ? url.getQuery() : "") ;
 		String version = "HTTP/1.0";
 		String data = "";
@@ -46,7 +49,6 @@ public class HttpClient {
 		pw.write("POST " + resId + " " + version +"\r\n");
 		pw.write("Host: " + url.getHost()  + " \r\n");
 		pw.write("Content-Length: " + data.length() + "\r\n");
-		pw.write("Content-Type: application/x-www-form-urlencoded \r\n");
 		pw.write("\r\n");
 		pw.write(data);
 		pw.flush();
@@ -131,8 +133,11 @@ public class HttpClient {
 		
 		if (args[1].equalsIgnoreCase("get")) {
 			try {
-				if (args[2].equals("-v"))
-					getOperation(socket, pw, reader, url, true);
+				if (args[2].equals("-v")) {
+					verbose = true;
+				}
+					
+				getOperation(socket, pw, reader, url);
 			}
 			catch (IOException e) {
 				System.err.println("I/O error... Program will terminate");
@@ -141,8 +146,10 @@ public class HttpClient {
 		}
 		else if (args[1].equalsIgnoreCase("post")) {
 			try {
-				if (args[2].equals("-v"))
-					postOperation(socket, pw, reader, url, true);
+				if (args[2].equals("-v")) {
+					verbose = true;
+				}
+					postOperation(socket, pw, reader, url);
 			}
 			catch (IOException e) {
 				System.err.println("I/O error... Program will terminate");
