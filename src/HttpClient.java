@@ -78,6 +78,25 @@ public class HttpClient {
 			System.exit(1);
 		}
 		
+		for (int i = 0; i < args.length; i++) {
+			if (args[i].equals("-d")) {
+				for (int j = 0; j < args.length; j++) {
+					if (args[j].equals("-f")) {
+						System.err.println("Either [-d] or [-f] can be used but not both.\nProgram will terminate...");
+						System.exit(1);	
+					}	
+				}
+			}
+			else if (args[i].equals("-f")) {
+				for (int j = 0; j < args.length; j++) {
+					if (args[j].equals("-d")) {
+						System.err.println("Either [-d] or [-f] can be used but not both.\nProgram will terminate...");
+						System.exit(1);	
+					}	
+				}
+			}
+		}	
+		
 		if (args[1].equals("help") && args.length == 2) {
 			System.out.println("httpc is a curl-like application but supports HTTP protocol only.\nUsage:\n    httpc command [arguments]\nThe commands are:\n    get \texecutes a HTTP GET request and prints the response.\n    post \texecutes a HTTP POST request and prints the response.\n    help\tprints this screen.\n\nUse \"httpc help [command]\" for more information about a command.");
 			System.exit(0);
@@ -133,10 +152,11 @@ public class HttpClient {
 		
 		if (args[1].equalsIgnoreCase("get")) {
 			try {
-				if (args[2].equals("-v")) {
-					verbose = true;
-				}
-					
+				for (int i = 0; i < args.length; i++) {
+					if (args[i].equals("-v")) {
+						verbose = true;
+					}
+				}	
 				getOperation(socket, pw, reader, url);
 			}
 			catch (IOException e) {
@@ -146,8 +166,10 @@ public class HttpClient {
 		}
 		else if (args[1].equalsIgnoreCase("post")) {
 			try {
-				if (args[2].equals("-v")) {
-					verbose = true;
+				for (int i = 0; i < args.length; i++) {
+					if (args[i].equals("-v")) {
+						verbose = true;
+					}
 				}
 					postOperation(socket, pw, reader, url);
 			}
