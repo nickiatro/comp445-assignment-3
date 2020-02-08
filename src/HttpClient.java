@@ -13,6 +13,7 @@ public class HttpClient {
 	
 	private static boolean verbose = false;
 	private static ArrayList<String> headers = new ArrayList<String>();
+	private static ArrayList<String> data = new ArrayList<String>();
 
 	private static void getOperation(Socket socket, PrintWriter pw, BufferedReader reader, URL url) throws IOException {
 		String resId = url.getPath() + ((url.getQuery() != null) ? url.getQuery() : "") ;
@@ -47,21 +48,31 @@ public class HttpClient {
 	private static void postOperation(Socket socket, PrintWriter pw, BufferedReader reader, URL url) throws IOException {
 		String resId = url.getPath() + ((url.getQuery() != null) ? url.getQuery() : "") ;
 		String version = "HTTP/1.0";
-		String data = "";
 		String output = "";
+		int length = 0;
 		
+		if (!data.isEmpty()) {
+			for (int i = 0; i < data.size(); i++) {
+				length += data.get(i).length();
+			}
+		}
+		System.out.println(length);
 		System.out.println("");
 		
 		pw.write("POST " + resId + " " + version +"\r\n");
 		pw.write("Host: " + url.getHost()  + " \r\n");
-		pw.write("Content-Length: " + data.length() + "\r\n");
+		pw.write("Content-Length: " + length + "\r\n");
 		if (!headers.isEmpty()) {
 			for (int i = 0; i < headers.size(); i++) {
 				pw.write(headers.get(i) + "\r\n");
 			}
 		}
 		pw.write("\r\n");
-		pw.write(data);
+		if (!data.isEmpty()) {
+			for (int i = 0; i < data.size(); i++) {
+				pw.write(data.get(i));
+			}
+		}
 		pw.flush();
 		socket.shutdownOutput();
 		
@@ -192,6 +203,13 @@ public class HttpClient {
 						for (int j = i + 1; j < args.length; j++) { 
 							if (args[j].matches(".:.")) {
 								headers.add(args[j]);
+							}
+						}
+					}
+					if (args[i].equals("-d")) {
+						for (int j = i + 1; j < args.length; j++) {
+							if (args[j].matches("\\{\"\\S+\":\\s.\\}") || args[j].matches("\\{\"\\S+\":\\s\".\"\\}")) {
+								data.add(args[j]);
 							}
 						}
 					}
