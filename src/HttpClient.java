@@ -166,7 +166,12 @@ public class HttpClient {
 			System.exit(0);
 		}
 		try {
-			url = new URL(args[args.length - 1]);
+			for (String arg : args) {
+				if (arg.startsWith("http://")) {
+					url = new URL(arg);
+					break;
+				}
+			}
 		} catch (MalformedURLException e) {
 			System.out.println("Bad URL... program will terminate");
 			System.exit(1);
