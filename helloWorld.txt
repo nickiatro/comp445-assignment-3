@@ -1,0 +1,20 @@
+HTTP/1.1 418 I'M A TEAPOT
+Date: Sun, 09 Feb 2020 19:11:08 GMT
+Content-Length: 135
+Connection: close
+Server: gunicorn/19.9.0
+x-more-info: http://tools.ietf.org/html/rfc2324
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Credentials: true
+
+
+    -=[ teapot ]=-
+
+       _...._
+     .'  _ _ `.
+    | ."` ^ `". _,
+    \_;`"---"`|//
+      |       ;/
+      \_     _/
+        `"""`
+
