@@ -16,6 +16,7 @@ public class HttpClient {
 	private static boolean verbose = false;
 	private static ArrayList<String> headers = new ArrayList<String>();
 	private static ArrayList<String> data = new ArrayList<String>();
+	private static PrintWriter fileOutput = null;
 
 	private static void getOperation(Socket socket, PrintWriter pw, BufferedReader reader, URL url) throws IOException {
 		String resId = url.getPath() + ((url.getQuery() != null) ? url.getQuery() : "") ;
@@ -35,28 +36,58 @@ public class HttpClient {
 		pw.flush();
 		socket.shutdownOutput();
 		
-		if (verbose == true) {
-			String firstLine = reader.readLine(); 
-			output = (firstLine != null) ? firstLine : "" ;
-			System.out.println(output);
-			
-			while (output != null) {
-				output = reader.readLine();
-				System.out.println((output != null ? output : ""));
+		if (fileOutput == null) {
+			if (verbose == true) {
+				String firstLine = reader.readLine(); 
+				output = (firstLine != null) ? firstLine : "" ;
+				System.out.println(output);
+				
+				while (output != null) {
+					output = reader.readLine();
+					System.out.println((output != null ? output : ""));
+				}
+			}
+			else if (verbose == false) {
+				String firstLine = reader.readLine(); 
+				output = (firstLine != null) ? firstLine : "" ;
+				
+				while (!output.isEmpty()) {
+					output = reader.readLine();
+				}
+				
+				while (output != null) {
+					output = reader.readLine();
+					System.out.println((output != null ? output : ""));
+				}
 			}
 		}
-		else if (verbose == false) {
-			String firstLine = reader.readLine(); 
-			output = (firstLine != null) ? firstLine : "" ;
-			
-			while (!output.isEmpty()) {
-				output = reader.readLine();
+		if (fileOutput != null) {
+			if (verbose == true) {
+				String firstLine = reader.readLine(); 
+				output = (firstLine != null) ? firstLine : "" ;
+				fileOutput.println(output);
+				
+				while (output != null) {
+					output = reader.readLine();
+					fileOutput.println((output != null ? output : ""));
+				}
 			}
-			
-			while (output != null) {
-				output = reader.readLine();
-				System.out.println((output != null ? output : ""));
+			else if (verbose == false) {
+				String firstLine = reader.readLine(); 
+				output = (firstLine != null) ? firstLine : "" ;
+				
+				while (!output.isEmpty()) {
+					output = reader.readLine();
+				}
+				
+				while (output != null) {
+					output = reader.readLine();
+					fileOutput.println((output != null ? output : ""));
+				}
 			}
+		}
+		if (fileOutput != null) {
+			fileOutput.close();
 		}
 		socket.shutdownInput();
 	}
@@ -89,29 +120,58 @@ public class HttpClient {
 		}
 		pw.flush();
 		socket.shutdownOutput();
-		
-		if (verbose == true) {
-			String firstLine = reader.readLine(); 
-			output = (firstLine != null) ? firstLine : "" ;
-			System.out.println(output);
-			
-			while (output != null) {
-				output = reader.readLine();
-				System.out.println((output != null ? output : ""));
+		if (fileOutput == null) {
+			if (verbose == true) {
+				String firstLine = reader.readLine(); 
+				output = (firstLine != null) ? firstLine : "" ;
+				System.out.println(output);
+				
+				while (output != null) {
+					output = reader.readLine();
+					System.out.println((output != null ? output : ""));
+				}
+			}
+			else if (verbose == false) {
+				String firstLine = reader.readLine(); 
+				output = (firstLine != null) ? firstLine : "" ;
+				
+				while (!output.isEmpty()) {
+					output = reader.readLine();
+				}
+				
+				while (output != null) {
+					output = reader.readLine();
+					System.out.println((output != null ? output : ""));
+				}
 			}
 		}
-		else if (verbose == false) {
-			String firstLine = reader.readLine(); 
-			output = (firstLine != null) ? firstLine : "" ;
-			
-			while (!output.isEmpty()) {
-				output = reader.readLine();
+		if (fileOutput != null) {
+			if (verbose == true) {
+				String firstLine = reader.readLine(); 
+				output = (firstLine != null) ? firstLine : "" ;
+				fileOutput.println(output);
+				
+				while (output != null) {
+					output = reader.readLine();
+					fileOutput.println((output != null ? output : ""));
+				}
 			}
-			
-			while (output != null) {
-				output = reader.readLine();
-				System.out.println((output != null ? output : ""));
+			else if (verbose == false) {
+				String firstLine = reader.readLine(); 
+				output = (firstLine != null) ? firstLine : "" ;
+				
+				while (!output.isEmpty()) {
+					output = reader.readLine();
+				}
+				
+				while (output != null) {
+					output = reader.readLine();
+					fileOutput.println((output != null ? output : ""));
+				}
 			}
+		}
+		if (fileOutput != null) {
+			fileOutput.close();
 		}
 		socket.shutdownInput();
 	}
@@ -213,6 +273,15 @@ public class HttpClient {
 					if (args[i].equals("-v")) {
 						verbose = true;
 					}
+					if (args[i].equals("-o")) {
+						try {
+							fileOutput = new PrintWriter(new File(args[i+1]));
+						}
+						catch (IOException e) {
+							System.err.println("I/O error... Program will terminate");
+							System.exit(1);
+						}
+					}
 					if (args[i].equals("-h")) {
 						for (int j = i + 1; j < args.length; j++) { 
 							if (args[j].matches(".:.")) {
@@ -233,6 +302,15 @@ public class HttpClient {
 				for (int i = 0; i < args.length; i++) {
 					if (args[i].equals("-v")) {
 						verbose = true;
+					}
+					if (args[i].equals("-o")) {
+						try {
+							fileOutput = new PrintWriter(new File(args[i+1]));
+						}
+						catch (IOException e) {
+							System.err.println("I/O error... Program will terminate");
+							System.exit(1);
+						}
 					}
 					if (args[i].equals("-h")) {
 						for (int j = i + 1; j < args.length; j++) { 
