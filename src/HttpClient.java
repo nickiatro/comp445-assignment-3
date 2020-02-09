@@ -36,12 +36,26 @@ public class HttpClient {
 		socket.shutdownOutput();
 		
 		if (verbose == true) {
-			output = reader.readLine();
+			String firstLine = reader.readLine(); 
+			output = (firstLine != null) ? firstLine : "" ;
 			System.out.println(output);
 			
 			while (output != null) {
 				output = reader.readLine();
-				System.out.println(output);
+				System.out.println((output != null ? output : ""));
+			}
+		}
+		else if (verbose == false) {
+			String firstLine = reader.readLine(); 
+			output = (firstLine != null) ? firstLine : "" ;
+			
+			while (!output.isEmpty()) {
+				output = reader.readLine();
+			}
+			
+			while (output != null) {
+				output = reader.readLine();
+				System.out.println((output != null ? output : ""));
 			}
 		}
 		socket.shutdownInput();
@@ -77,12 +91,26 @@ public class HttpClient {
 		socket.shutdownOutput();
 		
 		if (verbose == true) {
-			output = reader.readLine();
+			String firstLine = reader.readLine(); 
+			output = (firstLine != null) ? firstLine : "" ;
 			System.out.println(output);
 			
 			while (output != null) {
 				output = reader.readLine();
-				System.out.println(output);
+				System.out.println((output != null ? output : ""));
+			}
+		}
+		else if (verbose == false) {
+			String firstLine = reader.readLine(); 
+			output = (firstLine != null) ? firstLine : "" ;
+			
+			while (!output.isEmpty()) {
+				output = reader.readLine();
+			}
+			
+			while (output != null) {
+				output = reader.readLine();
+				System.out.println((output != null ? output : ""));
 			}
 		}
 		socket.shutdownInput();
