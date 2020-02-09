@@ -4,8 +4,10 @@ import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Scanner;
+import java.util.StringTokenizer;
 import java.io.PrintWriter;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
@@ -90,9 +92,11 @@ public class HttpClient {
 		Socket socket = null;
 		PrintWriter pw = null;
 		BufferedReader reader = null;
+		Scanner file = null;
 		URL url = null;
 		String hostName = "";
 		int port = 80;
+		String fileContents = "";
 		
 		if (!args[0].equals("httpc") || (!args[1].equals("get") && !args[1].equals("post") && !args[1].equals("help"))) {
 			System.exit(1);
@@ -209,6 +213,25 @@ public class HttpClient {
 							if (args[j].matches("\\{\"\\S+\":\\s.\\}") || args[j].matches("\\{\"\\S+\":\\s\".\"\\}")) {
 								data.add(args[j]);
 							}
+						}
+					}
+					if (args[i].equals("-f")) {
+						try {
+							file = new Scanner(new File(args[i+1]));
+						}
+						catch (IOException e) {
+							System.err.println("I/O error... Program will terminate");
+							System.exit(1);
+						}
+						
+						while (file.hasNext()) {
+							fileContents += file.next();
+						}
+						
+						StringTokenizer tokens = new StringTokenizer(fileContents, ",");
+						
+						while(tokens.hasMoreTokens()) {
+							data.add(tokens.nextToken());
 						}
 					}
 				}
