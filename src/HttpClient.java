@@ -314,7 +314,7 @@ public class HttpClient {
 					}
 					if (args[i].equals("-h")) {
 						for (int j = i + 1; j < args.length; j++) { 
-							if (args[j].matches(".:.")) {
+							if (args[j].matches("\\S+:\\S+")) {
 								headers.add(args[j]);
 							}
 						}
