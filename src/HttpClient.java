@@ -34,6 +34,13 @@ public class HttpClient {
 		}
 		pw.write("\r\n");
 		pw.flush();
+		
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			e.getMessage();
+		}
+		
 		socket.shutdownOutput();
 		
 		if (fileOutput == null) {
@@ -119,6 +126,13 @@ public class HttpClient {
 			}
 		}
 		pw.flush();
+		
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			e.getMessage();
+		}
+		
 		socket.shutdownOutput();
 		if (fileOutput == null) {
 			if (verbose == true) {
