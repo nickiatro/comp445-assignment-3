@@ -298,7 +298,7 @@ public class HttpClient {
 					}
 					if (args[i].equals("-h")) {
 						for (int j = i + 1; j < args.length; j++) { 
-							if (args[j].matches(".:.")) {
+							if (args[j].matches("\\S+:\\S+") && !args[j].equals(url.toString())) {
 								headers.add(args[j]);
 							}
 						}
@@ -328,7 +328,7 @@ public class HttpClient {
 					}
 					if (args[i].equals("-h")) {
 						for (int j = i + 1; j < args.length; j++) { 
-							if (args[j].matches("\\S+:\\S+")) {
+							if (args[j].matches("\\S+:\\S+") && !args[j].equals(url.toString())) {
 								headers.add(args[j]);
 							}
 						}
