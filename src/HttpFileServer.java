@@ -16,6 +16,8 @@ public class HttpFileServer {
 		PrintWriter pw = null;
 		BufferedReader reader = null;
 		boolean debugMsg = false;
+		String directory = "";
+		int port = 8080;
 		
 		if (!args[0].equals("httpfs")) {
 				System.exit(1);
@@ -38,10 +40,16 @@ public class HttpFileServer {
 			if (args[i].equals("-v")) {
 				debugMsg = true;
 			}
+			if (args[i].equals("-p")) {
+				port = Integer.parseInt(args[i + 1]);
+			}
+			if (args[i].equals("-d")) {
+				directory = args[i + 1];
+			}
 		}
 		
 		try {
-			serverSocket = new ServerSocket(8080);
+			serverSocket = new ServerSocket(port);
 		}
 		catch(IOException e) {
 			System.err.println("I/O error... Program will terminate");
@@ -106,7 +114,6 @@ public class HttpFileServer {
 			pw.println("Content-Type: text/html; charset=utf-8");
 			pw.println("Server: COMP 445 Assignment #2 Server");
 			pw.println("");
-			pw.println("<H1>HELLO</H1>");
 			
 			pw.close();
 			try {
