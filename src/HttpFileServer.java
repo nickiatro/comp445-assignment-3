@@ -7,6 +7,7 @@ import java.net.Socket;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Scanner;
+import java.util.StringTokenizer;
 
 public class HttpFileServer {
 	public static void main(String[] args) {
@@ -15,9 +16,14 @@ public class HttpFileServer {
 		Socket socket = null;
 		PrintWriter pw = null;
 		BufferedReader reader = null;
+		Scanner file = null;
+		
 		boolean debugMsg = false;
 		String directory = "";
 		int port = 8080;
+		
+		boolean ok = true;
+		boolean notFound = false;
 		
 		if (!args[0].equals("httpfs")) {
 				System.exit(1);
@@ -110,12 +116,30 @@ public class HttpFileServer {
 				}
 			}
 			
-			pw.println("HTTP/1.0 200 OK");
-			pw.println("Content-Type: text/html; charset=utf-8");
-			pw.println("Server: COMP 445 Assignment #2 Server");
-			pw.println("");
+			StringTokenizer tokens = null;
+			
+			if (directory.isEmpty()) {
+				tokens = new StringTokenizer(lines.get(0), " ");
+				tokens.nextToken();
+				directory = tokens.nextToken();
+			}
+			
+			if (ok == true) {
+				pw.println("HTTP/1.0 200 OK");
+				pw.println("Content-Type: text/html; charset=utf-8");
+				pw.println("Server: COMP 445 Assignment #2 Server");
+				pw.println("");
+			}
+			else if (notFound == true) {
+				pw.println("HTTP/1.0 404 NOT FOUND");
+				pw.println("Content-Type: text/html; charset=utf-8");
+				pw.println("Server: COMP 445 Assignment #2 Server");
+				pw.println("");
+			}
+			
 			
 			pw.close();
+			
 			try {
 				socket.close();
 			} catch (IOException e) {
