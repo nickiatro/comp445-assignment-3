@@ -5,6 +5,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Scanner;
 
 public class HttpFileServer {
@@ -20,7 +21,7 @@ public class HttpFileServer {
 				System.exit(1);
 		}
 		
-		if (args[0].equals("httpfs") && args[1].equals("help")) {
+		if (args.length == 2 && args[0].equals("httpfs") && args[1].equals("help")) {
 			System.out.println("httpfs is a simple file server.\n");
 			System.out.println("usage: httpfs [-v] [-p PORT] [-d PATH-TO-DIR]\n\n");
 			System.out.println("   -v   Prints debugging messages.\n");
@@ -73,26 +74,34 @@ public class HttpFileServer {
 			}
 			
 			String str = "";
-			if (debugMsg == true) {
+			ArrayList<String> lines = new ArrayList<String>();
+			
+			
+			try {
+				str = reader.readLine();
+			}
+			catch (IOException e) {
+				System.err.println("I/O error... Program will terminate");					System.exit(1);
+			}
+				
+			while (!str.isEmpty()) {
+				lines.add(str);
 				try {
 					str = reader.readLine();
-				}
+					} 
 				catch (IOException e) {
 					System.err.println("I/O error... Program will terminate");
 					System.exit(1);
-					}
+				}
 				
-				while (!str.isEmpty()) {
-					System.out.println(str);
-					try {
-						str = reader.readLine();
-					} catch (IOException e) {
-						System.err.println("I/O error... Program will terminate");
-						System.exit(1);
-					}
-				
+			}
+			
+			if (debugMsg == true) {
+				for (String line : lines) {
+					System.out.println(line);
 				}
 			}
+			
 			pw.println("HTTP/1.0 200 OK");
 			pw.println("Content-Type: text/html; charset=utf-8");
 			pw.println("Server: COMP 445 Assignment #2 Server");
