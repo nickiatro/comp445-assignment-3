@@ -1,5 +1,6 @@
 import java.net.ServerSocket;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -16,10 +17,10 @@ public class HttpFileServer {
 		Socket socket = null;
 		PrintWriter pw = null;
 		BufferedReader reader = null;
-		Scanner file = null;
+		Scanner fileScanner = null;
 		
 		boolean debugMsg = false;
-		String directory = "";
+		String directory = "C:\\Users\\nicho\\Documents\\comp445-assignment-2";
 		int port = 8080;
 		
 		boolean ok = true;
@@ -98,11 +99,11 @@ public class HttpFileServer {
 				System.err.println("I/O error... Program will terminate");					System.exit(1);
 			}
 				
-			while (!str.isEmpty()) {
+			while (!str.isEmpty() && str != null) {
 				lines.add(str);
 				try {
 					str = reader.readLine();
-					} 
+				} 
 				catch (IOException e) {
 					System.err.println("I/O error... Program will terminate");
 					System.exit(1);
@@ -116,13 +117,10 @@ public class HttpFileServer {
 				}
 			}
 			
-			StringTokenizer tokens = null;
+			StringTokenizer tokens = new StringTokenizer(lines.get(0), " ");
+			String method = tokens.nextToken();
 			
-			if (directory.isEmpty()) {
-				tokens = new StringTokenizer(lines.get(0), " ");
-				tokens.nextToken();
-				directory = tokens.nextToken();
-			}
+			String item = tokens.nextToken();
 			
 			if (ok == true) {
 				pw.println("HTTP/1.0 200 OK");
@@ -135,8 +133,24 @@ public class HttpFileServer {
 				pw.println("Content-Type: text/html; charset=utf-8");
 				pw.println("Server: COMP 445 Assignment #2 Server");
 				pw.println("");
+				pw.println("Error 404: Not Found");
 			}
 			
+			if (method.equals("GET") && ok == true && item.equals("/")) {
+				File folder = new File(directory);
+				File[] filesInFolder = folder.listFiles();
+				
+				pw.println("<H1>List of Files in Directory: " + directory +"</H1>");
+				
+				pw.println("<ul>");
+				for (File file : filesInFolder) {
+					pw.println("<li>" + file.getName() + "</li>");
+				}
+				pw.println("</ul>");
+			}
+			else if (method.equals("POST")) {
+				
+			}
 			
 			pw.close();
 			
