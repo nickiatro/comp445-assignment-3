@@ -29,6 +29,7 @@ public class HttpFileServer {
 		
 		boolean ok = true;
 		boolean notFound = false;
+		boolean forbidden = false;
 		
 		if (!args[0].equals("httpfs")) {
 				System.exit(1);
@@ -70,6 +71,13 @@ public class HttpFileServer {
 		while (true) {
 			ok = true;
 			notFound = false;
+			forbidden = false;
+			
+			if (directory.contains("..")) {
+				forbidden = true;
+				ok = false;
+				notFound = false;
+			}
 			
 			try {
 				socket = serverSocket.accept();
@@ -162,6 +170,7 @@ public class HttpFileServer {
 					}
 					
 				}
+				
 				if (ok == true) {
 					pw.println("HTTP/1.0 200 OK");
 					pw.println("Content-Type: text/html; charset=utf-8");
@@ -174,6 +183,13 @@ public class HttpFileServer {
 					pw.println("Server: COMP 445 Assignment #2 Server");
 					pw.println("");
 					pw.println("Error 404: Not Found");
+				}
+				else if (forbidden == true) {
+					pw.println("HTTP/1.0 403 FORBIDDEN");
+					pw.println("Content-Type: text/html; charset=utf-8");
+					pw.println("Server: COMP 445 Assignment #2 Server");
+					pw.println("");
+					pw.println("Error 403: Forbidden");
 				}
 				
 				if (method.equals("GET") && ok == true && item.equals("/")) {
