@@ -1,12 +1,15 @@
 import java.net.ServerSocket;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.StringTokenizer;
 
@@ -16,6 +19,7 @@ public class HttpFileServer {
 		ServerSocket serverSocket = null;
 		Socket socket = null;
 		PrintWriter pw = null;
+		PrintWriter pwPost = null;
 		BufferedReader reader = null;
 		Scanner fileScanner = null;
 		
@@ -64,6 +68,9 @@ public class HttpFileServer {
 		}
 		
 		while (true) {
+			ok = true;
+			notFound = false;
+			
 			try {
 				socket = serverSocket.accept();
 			} 
@@ -94,15 +101,17 @@ public class HttpFileServer {
 			
 			try {
 				str = reader.readLine();
+				lines.add(str);
 			}
 			catch (IOException e) {
-				System.err.println("I/O error... Program will terminate");					System.exit(1);
+				System.err.println("I/O error... Program will terminate");					
+				System.exit(1);
 			}
 				
-			while (!str.isEmpty() && str != null) {
-				lines.add(str);
+			while (str != null && str.length() > 0) {
 				try {
 					str = reader.readLine();
+					lines.add(str);
 				} 
 				catch (IOException e) {
 					System.err.println("I/O error... Program will terminate");
@@ -111,47 +120,98 @@ public class HttpFileServer {
 				
 			}
 			
+			if (lines.get(0) == null) {
+				continue;
+			}
+			
 			if (debugMsg == true) {
 				for (String line : lines) {
 					System.out.println(line);
 				}
 			}
+
+			StringTokenizer tokens = null;
 			
-			StringTokenizer tokens = new StringTokenizer(lines.get(0), " ");
-			String method = tokens.nextToken();
-			
-			String item = tokens.nextToken();
-			
-			if (ok == true) {
-				pw.println("HTTP/1.0 200 OK");
-				pw.println("Content-Type: text/html; charset=utf-8");
-				pw.println("Server: COMP 445 Assignment #2 Server");
-				pw.println("");
-			}
-			else if (notFound == true) {
-				pw.println("HTTP/1.0 404 NOT FOUND");
-				pw.println("Content-Type: text/html; charset=utf-8");
-				pw.println("Server: COMP 445 Assignment #2 Server");
-				pw.println("");
-				pw.println("Error 404: Not Found");
-			}
-			
-			if (method.equals("GET") && ok == true && item.equals("/")) {
-				File folder = new File(directory);
-				File[] filesInFolder = folder.listFiles();
+			if (lines.get(0) != null) {
+				tokens = new StringTokenizer(lines.get(0), " ");
+				String method = tokens.nextToken();
+				String item = tokens.nextToken();
 				
-				pw.println("<H1>List of Files in Directory: " + directory +"</H1>");
+				ArrayList<String> fileContents = new ArrayList<String>();
 				
-				pw.println("<ul>");
-				for (File file : filesInFolder) {
-					pw.println("<li>" + file.getName() + "</li>");
+				if (method.equals("GET") && !item.equals("/") && !item.isEmpty()) {
+					File file = new File(directory + item);
+					try {
+						fileScanner = new Scanner(new FileInputStream(file));
+						
+						fileContents.add(fileScanner.nextLine());
+						
+						while (fileScanner.hasNextLine()) {
+							fileContents.add(fileScanner.nextLine());
+						}
+						
+						fileScanner.close();
+						
+					} catch (FileNotFoundException e1) {
+						notFound = true;
+						ok = false;
+					}
+					catch (NoSuchElementException e2) {
+						notFound = true;
+						ok = false;
+					}
+					
 				}
-				pw.println("</ul>");
-			}
-			else if (method.equals("POST")) {
+				if (ok == true) {
+					pw.println("HTTP/1.0 200 OK");
+					pw.println("Content-Type: text/html; charset=utf-8");
+					pw.println("Server: COMP 445 Assignment #2 Server");
+					pw.println("");
+				}
+				else if (notFound == true) {
+					pw.println("HTTP/1.0 404 NOT FOUND");
+					pw.println("Content-Type: text/html; charset=utf-8");
+					pw.println("Server: COMP 445 Assignment #2 Server");
+					pw.println("");
+					pw.println("Error 404: Not Found");
+				}
 				
+				if (method.equals("GET") && ok == true && item.equals("/")) {
+					File folder = new File(directory);
+					File[] filesInFolder = folder.listFiles();
+					
+					pw.println("<H1>List of Files in Directory: " + directory +"</H1>");
+					
+					pw.println("<ul>");
+					for (File file : filesInFolder) {
+						if (file.isFile()) {
+							pw.println("<li>" + file.getName() + "</li>");
+						}
+					}
+					pw.println("</ul>");
+				}
+				else if (method.equals("GET") && !item.equals("/") && !item.isEmpty()) {
+					for (String fileLine : fileContents) {
+						pw.println(fileLine);
+					}
+				}
+				
+				else if (method.equals("POST")) {
+					File file = new File(directory + item);
+					try {
+						pwPost = new PrintWriter(file);
+						
+					} catch (FileNotFoundException e1) {
+						notFound = true;
+						ok = false;
+					}
+					catch (NoSuchElementException e2) {
+						notFound = true;
+						ok = false;
+					}
+					
+				}
 			}
-			
 			pw.close();
 			
 			try {
