@@ -197,7 +197,7 @@ public class HttpClient {
 		Scanner file = null;
 		URL url = null;
 		String hostName = "";
-		int port = 80;
+		int port = 8080;
 		String fileContents = "";
 		
 		if (!args[0].equals("httpc") || (!args[1].equals("get") && !args[1].equals("post") && !args[1].equals("help"))) {
