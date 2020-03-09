@@ -24,7 +24,7 @@ public class HttpFileServer {
 		Scanner fileScanner = null;
 		
 		boolean debugMsg = false;
-		String directory = "C:\\Users\\nicho\\Documents\\comp445-assignment-2";
+		String directory = "./";
 		int port = 8080;
 		
 		boolean ok = true;
