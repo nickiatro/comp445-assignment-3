@@ -73,7 +73,7 @@ public class HttpFileServer {
 			notFound = false;
 			forbidden = false;
 			
-			if (directory.contains("..")) {
+			if (directory.contains("..") || !directory.startsWith("./")) {
 				forbidden = true;
 				ok = false;
 				notFound = false;
@@ -116,10 +116,13 @@ public class HttpFileServer {
 				System.exit(1);
 			}
 				
-			while (str != null && str.length() > 0) {
+			while (str != null) {
 				try {
 					str = reader.readLine();
-					lines.add(str);
+					
+					if (str != null) {
+						lines.add(str);
+					}
 				} 
 				catch (IOException e) {
 					System.err.println("I/O error... Program will terminate");
@@ -225,6 +228,17 @@ public class HttpFileServer {
 						notFound = true;
 						ok = false;
 					}
+					
+					for (int i = 0; i < lines.size(); i++) {
+						if (lines.get(i).equals("")) {
+							for (int j = i + 1; j < lines.size(); j++) {
+								pwPost.println(lines.get(j));
+							}
+							break;
+						}
+					}
+					
+					pwPost.close();
 					
 				}
 			}
