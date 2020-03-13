@@ -116,7 +116,7 @@ public class HttpFileServer {
 				System.exit(1);
 			}
 				
-			while (str != null) {
+			while (str != null && str.length() > 0) {
 				try {
 					str = reader.readLine();
 					
@@ -133,12 +133,6 @@ public class HttpFileServer {
 			
 			if (lines.get(0) == null) {
 				continue;
-			}
-			
-			if (debugMsg == true) {
-				for (String line : lines) {
-					System.out.println(line);
-				}
 			}
 
 			StringTokenizer tokens = null;
@@ -216,6 +210,30 @@ public class HttpFileServer {
 				}
 				
 				else if (method.equals("POST")) {
+					try {
+						str = reader.readLine();
+						lines.add(str);
+					}
+					catch (IOException e) {
+						System.err.println("I/O error... Program will terminate");					
+						System.exit(1);
+					}
+					
+					while (str != null && str.length() > 0) {
+						try {
+							str = reader.readLine();
+							
+							if (str != null) {
+								lines.add(str);
+							}
+						} 
+						catch (IOException e) {
+							System.err.println("I/O error... Program will terminate");
+							System.exit(1);
+						}
+						
+					}
+					
 					File file = new File(directory + item);
 					try {
 						pwPost = new PrintWriter(file);
@@ -242,6 +260,13 @@ public class HttpFileServer {
 					
 				}
 			}
+			
+			if (debugMsg == true) {
+				for (String line : lines) {
+					System.out.println(line);
+				}
+			}
+			
 			pw.close();
 			
 			try {
