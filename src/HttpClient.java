@@ -1,15 +1,19 @@
+import java.net.DatagramSocket;
 import java.net.MalformedURLException;
-import java.net.Socket;
-import java.net.URL;
+import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+import java.nio.channels.DatagramChannel;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.StringTokenizer;
 import java.io.PrintWriter;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
 
 public class HttpClient {
 	
@@ -18,21 +22,20 @@ public class HttpClient {
 	private static ArrayList<String> data = new ArrayList<String>();
 	private static PrintWriter fileOutput = null;
 
-	private static void getOperation(Socket socket, PrintWriter pw, BufferedReader reader, URL url) throws IOException {
-		String resId = url.getPath() + ((url.getQuery() != null) ? url.getQuery() : "") ;
+	private static void getOperation(DatagramChannel channel, ByteArrayOutputStream pw, BufferedReader reader, InetSocketAddress server, InetSocketAddress router) throws IOException {
 		String version = "HTTP/1.0";
 		String output = "";
 		
 		System.out.println("");
 		
-		pw.write("GET " + resId + " " + version +"\r\n");
-		pw.write("Host: " + url.getHost() + "\r\n");
+		pw.write(("GET " + "/" + version +"\r\n").getBytes());
+		pw.write(("Host: " + server.getHostName() + "\r\n").getBytes());
 		if (!headers.isEmpty()) {
 			for (int i = 0; i < headers.size(); i++) {
-				pw.write(headers.get(i) + "\r\n");
+				pw.write((headers.get(i) + "\r\n").getBytes());
 			}
 		}
-		pw.write("\r\n");
+		pw.write(("\r\n").getBytes());
 		pw.flush();
 		
 		try {
@@ -41,8 +44,19 @@ public class HttpClient {
 			e.getMessage();
 		}
 		
-		socket.shutdownOutput();
+		Packet packet = new Packet(0, 1L, server.getAddress(), server.getPort(), pw.toByteArray());
 		
+		ByteBuffer buffer = ByteBuffer.allocate(Packet.MAX_LEN);
+		buffer.put((byte) packet.getType());
+		buffer.putInt((int)packet.getSequenceNumber());
+		buffer.put(server.getAddress().getAddress());
+		buffer.putShort((short)server.getPort());
+		buffer.put(packet.getPayload());
+		
+		channel.send(buffer, router);
+
+	//	socket.shutdownOutput();
+		/*
 		if (fileOutput == null) {
 			if (verbose == true) {
 				String firstLine = reader.readLine(); 
@@ -95,12 +109,12 @@ public class HttpClient {
 		}
 		if (fileOutput != null) {
 			fileOutput.close();
-		}
-		socket.shutdownInput();
+		} */
+		//socket.shutdownInput();
 	}
 	
-	private static void postOperation(Socket socket, PrintWriter pw, BufferedReader reader, URL url) throws IOException {
-		String resId = url.getPath() + ((url.getQuery() != null) ? url.getQuery() : "") ;
+	private static void postOperation(DatagramSocket socket, ByteArrayOutputStream pw, BufferedReader reader, InetSocketAddress server) throws IOException {
+		//String resId = server.getPath() + ((server.getQuery() != null) ? server.getQuery() : "") ;
 		String version = "HTTP/1.0";
 		String output = "";
 		int length = 0;
@@ -111,18 +125,18 @@ public class HttpClient {
 			}
 		}
 		
-		pw.write("POST " + resId + " " + version +"\r\n");
-		pw.write("Host: " + url.getHost()  + " \r\n");
-		pw.write("Content-Length: " + length + "\r\n");
+		//pw.write("POST " + resId + " " + version +"\r\n");
+		pw.write(("Host: " + server.getHostName()  + " \r\n").getBytes());
+		pw.write(("Content-Length: " + length + "\r\n").getBytes());
 		if (!headers.isEmpty()) {
 			for (int i = 0; i < headers.size(); i++) {
-				pw.write(headers.get(i) + "\r\n");
+				pw.write((headers.get(i) + "\r\n").getBytes());
 			}
 		}
-		pw.write("\r\n");
+		pw.write(("\r\n").getBytes());
 		if (!data.isEmpty()) {
 			for (int i = 0; i < data.size(); i++) {
-				pw.write(data.get(i));
+				pw.write(data.get(i).getBytes());
 			}
 		}
 		pw.flush();
@@ -133,7 +147,7 @@ public class HttpClient {
 			e.getMessage();
 		}
 		
-		socket.shutdownOutput();
+		//socket.shutdownOutput();
 		if (fileOutput == null) {
 			if (verbose == true) {
 				String firstLine = reader.readLine(); 
@@ -187,17 +201,19 @@ public class HttpClient {
 		if (fileOutput != null) {
 			fileOutput.close();
 		}
-		socket.shutdownInput();
+		//socket.shutdownInput();
 	}
 	
 	public static void main(String[] args) {
-		Socket socket = null;
-		PrintWriter pw = null;
+		DatagramChannel channel = null;
 		BufferedReader reader = null;
 		Scanner file = null;
-		URL url = null;
-		String hostName = "";
-		int port = 8080;
+		InetSocketAddress server = null;
+		InetSocketAddress router = null;
+		ByteArrayOutputStream pw = null;
+		
+		final int port = 8007;
+		final int routerPort = 3000;
 		String fileContents = "";
 		
 		if (!args[0].equals("httpc") || (!args[1].equals("get") && !args[1].equals("post") && !args[1].equals("help"))) {
@@ -230,56 +246,57 @@ public class HttpClient {
 		
 		if (args[1].equals("help") && args[2].equals("get") && args.length == 3) {
 			System.out.println("httpc help get\r\n" + 
-					"usage: httpc get [-v] [-h key:value] URL\nGet executes a HTTP GET request for a given URL.\n  -v\t\tPrints the detail of the response such as protocol, status,\n and headers.\n  -h key:value\tAssociates headers to HTTP Request with the format\n'key:value'.");
+					"usage: httpc get [-v] [-h key:value] InetAddress\nGet executes a HTTP GET request for a given InetAddress.\n  -v\t\tPrints the detail of the response such as protocol, status,\n and headers.\n  -h key:value\tAssociates headers to HTTP Request with the format\n'key:value'.");
 			System.exit(0);
 		}
 		
 		if (args[1].equals("help") && args[2].equals("post") && args.length == 3) {
 			System.out.println("httpc help post\r\n" +  
-					"usage: httpc post [-v] [-h key:value] [-d inline-data] [-f file] URL\nPost executes a HTTP POST request for a given URL with inline data or from\nfile.\n\n  -v\t\t  Prints the detail of the response such as protocol, status,\nand headers.\n  -h key:value\t  Associates headers to HTTP Request with the format\n'key:value'.\n  -d string\t  Associates an inline data to the body HTTP POST request.\n  -f file\t  Associates the content of a file to the body HTTP POST\nrequest.\n\nEither [-d] or [-f] can be used but not both.");
+					"usage: httpc post [-v] [-h key:value] [-d inline-data] [-f file] InetAddress\nPost executes a HTTP POST request for a given InetAddress with inline data or from\nfile.\n\n  -v\t\t  Prints the detail of the response such as protocol, status,\nand headers.\n  -h key:value\t  Associates headers to HTTP Request with the format\n'key:value'.\n  -d string\t  Associates an inline data to the body HTTP POST request.\n  -f file\t  Associates the content of a file to the body HTTP POST\nrequest.\n\nEither [-d] or [-f] can be used but not both.");
 			System.exit(0);
 		}
+		
 		try {
-			for (String arg : args) {
-				if (arg.startsWith("http://")) {
-					url = new URL(arg);
-					break;
-				}
-			}
-		} catch (MalformedURLException e) {
-			System.out.println("Bad URL... program will terminate");
+			server = new InetSocketAddress(InetAddress.getByName(args[args.length - 1]), port);
+		}
+		catch (UnknownHostException e) {
+			System.out.println("Bad InetAddress... program will terminate");
 			System.exit(1);
 		}
 		
-		hostName = url.getHost();
-		
 		try {
-			socket = new Socket(hostName, port);
+			router = new InetSocketAddress(InetAddress.getByName(args[args.length - 1]), routerPort);
 		}
-		catch(UnknownHostException e1) {
-			System.err.println("Unknown host... Program will terminate");
+		catch (UnknownHostException e) {
+			System.out.println("Bad InetAddress... program will terminate");
 			System.exit(1);
 		}
+		
+		
+		//hostName = server.getHostName();
+		
+		try {
+			channel = DatagramChannel.open();
+		}
+		//catch(UnknownHostException e1) {
+			//System.err.println("Unknown host... Program will terminate");
+			//System.exit(1);
+		//}
 		catch(IOException e2) {
 			System.err.println("I/O error... Program will terminate");
 			System.exit(1);
 		}
 		
-		try {
-			pw = new PrintWriter(socket.getOutputStream());
-		}
-		catch (IOException e) {
-			System.err.println("I/O error... Program will terminate");
-			System.exit(1);
-		}
-		
+
+		pw = new ByteArrayOutputStream();
+		/*
 		try {
 			reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 		}
 		catch (IOException e) {
 			System.err.println("I/O error... Program will terminate");
 			System.exit(1);
-		}
+		}*/
 		
 		if (args[1].equalsIgnoreCase("get")) {
 			try {
@@ -298,13 +315,13 @@ public class HttpClient {
 					}
 					if (args[i].equals("-h")) {
 						for (int j = i + 1; j < args.length; j++) { 
-							if (args[j].matches("\\S+:\\S+") && !args[j].equals(url.toString())) {
+							if (args[j].matches("\\S+:\\S+") && !args[j].equals(server.toString())) {
 								headers.add(args[j]);
 							}
 						}
 					}
 				}	
-				getOperation(socket, pw, reader, url);
+				getOperation(channel, pw, reader, server, router);
 			}
 			catch (IOException e) {
 				System.err.println("I/O error... Program will terminate");
@@ -328,7 +345,7 @@ public class HttpClient {
 					}
 					if (args[i].equals("-h")) {
 						for (int j = i + 1; j < args.length; j++) { 
-							if (args[j].matches("\\S+:\\S+") && !args[j].equals(url.toString())) {
+							if (args[j].matches("\\S+:\\S+") && !args[j].equals(server.toString())) {
 								headers.add(args[j]);
 							}
 						}
@@ -360,7 +377,7 @@ public class HttpClient {
 						}
 					}
 				}
-					postOperation(socket, pw, reader, url);
+					postOperation(channel.socket(), pw, reader, server);
 			}
 			catch (IOException e) {
 				System.err.println("I/O error... Program will terminate");
