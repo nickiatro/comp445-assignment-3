@@ -1,11 +1,16 @@
 import java.net.DatagramSocket;
+import java.net.Inet4Address;
 import java.net.MalformedURLException;
+import java.net.SocketAddress;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.DatagramChannel;
+import java.nio.channels.Selector;
 import java.util.ArrayList;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.StringTokenizer;
 import java.io.PrintWriter;
 import java.io.BufferedReader;
@@ -14,6 +19,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
+import java.nio.channels.SelectionKey;
+
+import static java.nio.channels.SelectionKey.OP_READ;
 
 public class HttpClient {
 	
@@ -46,15 +54,38 @@ public class HttpClient {
 		
 		Packet packet = new Packet(0, 1L, server.getAddress(), server.getPort(), pw.toByteArray());
 		
-		ByteBuffer buffer = ByteBuffer.allocate(Packet.MAX_LEN);
-		buffer.put((byte) packet.getType());
-		buffer.putInt((int)packet.getSequenceNumber());
-		buffer.put(server.getAddress().getAddress());
-		buffer.putShort((short)server.getPort());
-		buffer.put(packet.getPayload());
+		channel.send(packet.toBuffer(), router);
 		
-		channel.send(buffer, router);
-
+		channel.configureBlocking(false);
+		Selector selector = Selector.open();
+		channel.register(selector, OP_READ);
+		selector.select(5000);
+		
+		Set<SelectionKey> keys = selector.selectedKeys();
+		
+        if(keys.isEmpty()){
+            System.err.println("No response after timeout");
+            return;
+        }
+		
+		 ByteBuffer byteBuffer = ByteBuffer.allocate(Packet.MAX_LEN);
+         channel.receive(byteBuffer);
+         byteBuffer.flip();
+         Packet response = Packet.fromBuffer(byteBuffer);
+         
+         
+        /* Packet response = new Packet(Byte.toUnsignedInt(byteBuffer.get()), Integer.toUnsignedLong(byteBuffer.getInt()), null, 0, null);
+         byte[] host = new byte[]{byteBuffer.get(), byteBuffer.get(), byteBuffer.get(), byteBuffer.get()};
+         response.setPeerAddress(Inet4Address.getByAddress(host));
+         response.setPeerPort(Short.toUnsignedInt(byteBuffer.getShort()));
+         byte[] payload = new byte[byteBuffer.remaining()];
+         byteBuffer.get(payload);
+         response.setPayload(payload);
+         
+         String payloadString = new String(response.getPayload(), "UTF-8");
+         
+         System.out.println(payloadString);
+         */
 	//	socket.shutdownOutput();
 		/*
 		if (fileOutput == null) {
@@ -113,7 +144,7 @@ public class HttpClient {
 		//socket.shutdownInput();
 	}
 	
-	private static void postOperation(DatagramSocket socket, ByteArrayOutputStream pw, BufferedReader reader, InetSocketAddress server) throws IOException {
+	private static void postOperation(DatagramChannel channel, ByteArrayOutputStream pw, BufferedReader reader, InetSocketAddress server, InetSocketAddress router) throws IOException {
 		//String resId = server.getPath() + ((server.getQuery() != null) ? server.getQuery() : "") ;
 		String version = "HTTP/1.0";
 		String output = "";
@@ -147,6 +178,22 @@ public class HttpClient {
 			e.getMessage();
 		}
 		
+		Packet packet = new Packet(0, 1L, server.getAddress(), server.getPort(), pw.toByteArray());
+		
+		ByteBuffer buffer = ByteBuffer.allocate(Packet.MAX_LEN);
+		buffer.put((byte) packet.getType());
+		buffer.putInt((int)packet.getSequenceNumber());
+		buffer.put(server.getAddress().getAddress());
+		buffer.putShort((short)server.getPort());
+		buffer.put(packet.getPayload());
+		
+		channel.send(buffer, router);
+		
+		channel.configureBlocking(false);
+		Selector selector = Selector.open();
+		channel.register(selector, OP_READ);
+		selector.select(5000);
+
 		//socket.shutdownOutput();
 		if (fileOutput == null) {
 			if (verbose == true) {
@@ -377,7 +424,7 @@ public class HttpClient {
 						}
 					}
 				}
-					postOperation(channel.socket(), pw, reader, server);
+					postOperation(channel, pw, reader, server, router);
 			}
 			catch (IOException e) {
 				System.err.println("I/O error... Program will terminate");
