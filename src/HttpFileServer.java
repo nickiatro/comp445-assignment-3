@@ -1,30 +1,50 @@
+import java.net.DatagramSocket;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.Socket;
+import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.DatagramChannel;
 import java.util.ArrayList;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.StringTokenizer;
 
+
 public class HttpFileServer {
+	
+	private static long sequenceNumber = 0L;
+	private static long ackNumber = 0L;
+	
 	public static void main(String[] args) {
 		
-		ServerSocket serverSocket = null;
-		Socket socket = null;
-		PrintWriter pw = null;
+		//ServerSocket serverSocket = null;
+		DatagramChannel channel = null;
+		ByteArrayOutputStream pw = null;
 		PrintWriter pwPost = null;
-		BufferedReader reader = null;
+		ByteArrayInputStream reader = null;
+		ByteBuffer buffer = null;
 		Scanner fileScanner = null;
+		InetSocketAddress server = null;
+		InetSocketAddress router = null;
 		
-		boolean debugMsg = false;
+		boolean debugMsg = true;
 		String directory = "./";
-		int port = 8080;
+		int port = 8007;
+		final int routerPort = 3000;
 		
 		boolean ok = true;
 		boolean notFound = false;
@@ -39,7 +59,7 @@ public class HttpFileServer {
 			System.out.println("usage: httpfs [-v] [-p PORT] [-d PATH-TO-DIR]\n\n");
 			System.out.println("   -v   Prints debugging messages.\n");
 			System.out.println("   -p   Specifies the port number that the server will listen and serve at.\r\n" + 
-					"\n        Default is 8080.\r\n" + 
+					"\n        Default is 8007.\r\n" + 
 					"\n");
 			System.out.println("   -d   Specifies the directory that the server will use to read/write\r\n" + 
 					"requested files. Default is the current directory when launching the\r\n" + 
@@ -59,13 +79,41 @@ public class HttpFileServer {
 			}
 		}
 		
-		try {
+		/*try {
 			serverSocket = new ServerSocket(port);
 		}
 		catch(IOException e) {
 			System.err.println("I/O error... Program will terminate");
 			System.exit(1);
+		}*/
+		
+		try {
+			server = new InetSocketAddress(InetAddress.getByName("localhost"), port);
 		}
+		catch (UnknownHostException e) {
+			System.out.println("Bad InetAddress... program will terminate");
+			System.exit(1);
+		}
+		
+		try {
+			router = new InetSocketAddress(InetAddress.getByName("localhost"), routerPort);
+		}
+		catch (UnknownHostException e) {
+			System.out.println("Bad InetAddress... program will terminate");
+			System.exit(1);
+		}
+		
+		try {
+			channel = DatagramChannel.open();
+			channel.bind(server);
+		} 
+		catch (IOException e) {
+			System.err.println("I/O error... Program will terminate");
+			System.exit(1);
+		}
+		
+
+		buffer = ByteBuffer.allocate(Packet.MAX_LEN).order(ByteOrder.BIG_ENDIAN);
 		
 		while (true) {
 			ok = true;
@@ -77,37 +125,59 @@ public class HttpFileServer {
 				ok = false;
 				notFound = false;
 			}
-			
+			/*
 			try {
-				socket = serverSocket.accept();
-			} 
-			catch (IOException e) {
-				System.err.println("I/O error... Program will terminate");
-				System.exit(1);
-			}
-			
-			try {
-				reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+				reader = new ByteArrayInputStream(buffer.array());
 			}
 			catch (IOException e) {
 				System.err.println("I/O error... Program will terminate");
 				System.exit(1);
 			}
+			*/
+			
+			buffer.clear();
 			
 			try {
-				pw = new PrintWriter(socket.getOutputStream());
+				channel.receive(buffer);
+			} catch (IOException e4) {
+				e4.printStackTrace();
 			}
-			catch (IOException e) {
-				System.err.println("I/O error... Program will terminate");
-				System.exit(1);
+			
+			buffer.flip();
+			Packet packet = null;
+			
+			try {
+				packet = Packet.fromBuffer(buffer);
+			} catch (IOException e4) {
+				e4.printStackTrace();
 			}
+			
+			buffer.flip();
+			
+			pw = new ByteArrayOutputStream();
 			
 			String str = "";
-			ArrayList<String> lines = new ArrayList<String>();
+			ArrayList<String> lines = null;
+			StringTokenizer tokens = null;
 			
-			
-			try {
-				str = reader.readLine();
+			if (buffer.array().length > 0) {
+				try {
+					str = new String(packet.getPayload(), "UTF-8").trim();
+					//System.out.println(str);
+				} catch (UnsupportedEncodingException e3) {
+					e3.printStackTrace();
+					System.exit(1);
+				}
+				lines = new ArrayList<String>();
+				tokens = new StringTokenizer(str, "\n");
+				
+				while (tokens.hasMoreTokens())
+				{
+					lines.add(tokens.nextToken());
+				}
+			}
+			/*try {
+				str = reader.read();
 				lines.add(str);
 			}
 			catch (IOException e) {
@@ -133,10 +203,9 @@ public class HttpFileServer {
 			if (lines.get(0) == null) {
 				continue;
 			}
-
-			StringTokenizer tokens = null;
-			
-			if (lines.get(0) != null) {
+*/
+			tokens = null;
+			if (!str.isEmpty() && lines.get(0) != null) {
 				tokens = new StringTokenizer(lines.get(0), " ");
 				String method = tokens.nextToken();
 				String item = tokens.nextToken();
@@ -166,50 +235,70 @@ public class HttpFileServer {
 					}
 					
 				}
-				
+				try {
 				if (ok == true) {
-					pw.println("HTTP/1.0 200 OK");
-					pw.println("Content-Type: text/html; charset=utf-8");
-					pw.println("Server: COMP 445 Assignment #2 Server");
-					pw.println("");
+					pw.write(("HTTP/1.0 200 OK" + "\n").getBytes());
+					pw.write(("Content-Type: text/html; charset=utf-8" + "\n").getBytes());
+					pw.write(("Server: COMP 445 Assignment #3 Server" + "\n").getBytes());
+					pw.write(("\n").getBytes());
+					
+					Packet response = packet;
+					response.setPayload(pw.toByteArray());
+					channel.send(response.toBuffer(), router);
 				}
 				else if (notFound == true) {
-					pw.println("HTTP/1.0 404 NOT FOUND");
-					pw.println("Content-Type: text/html; charset=utf-8");
-					pw.println("Server: COMP 445 Assignment #2 Server");
-					pw.println("");
-					pw.println("Error 404: Not Found");
+					pw.write(("HTTP/1.0 404 NOT FOUND" + "\n").getBytes());
+					pw.write(("Content-Type: text/html; charset=utf-8" + "\n").getBytes());
+					pw.write(("Server: COMP 445 Assignment #3 Server" + "\n").getBytes());
+					pw.write(("\n").getBytes());
+					pw.write(("Error 404: Not Found" + "\n").getBytes());
+					
+					Packet response = packet;
+					response.setPayload(pw.toByteArray());
+					channel.send(response.toBuffer(), router);
 				}
 				else if (forbidden == true) {
-					pw.println("HTTP/1.0 403 FORBIDDEN");
-					pw.println("Content-Type: text/html; charset=utf-8");
-					pw.println("Server: COMP 445 Assignment #2 Server");
-					pw.println("");
-					pw.println("Error 403: Forbidden");
+					pw.write(("HTTP/1.0 403 FORBIDDEN" + "\n").getBytes());
+					pw.write(("Content-Type: text/html; charset=utf-8" + "\n").getBytes());
+					pw.write(("Server: COMP 445 Assignment #3 Server" + "\n").getBytes());
+					pw.write(("\n").getBytes());
+					pw.write(("Error 403: Forbidden").getBytes());
+					
+					Packet response = packet;
+					response.setPayload(pw.toByteArray());
+					channel.send(response.toBuffer(), router);
 				}
 				
 				if (method.equals("GET") && ok == true && item.equals("/")) {
 					File folder = new File(directory);
 					File[] filesInFolder = folder.listFiles();
 					
-					pw.println("<H1>List of Files in Directory: " + directory +"</H1>");
+					pw.write(("<H1>List of Files in Directory: " + directory +"</H1>" + "\n").getBytes());
 					
-					pw.println("<ul>");
+					pw.write(("<ul>" + "\n").getBytes());
 					for (File file : filesInFolder) {
 						if (file.isFile()) {
-							pw.println("<li>" + file.getName() + "</li>");
+							pw.write(("<li>" + file.getName() + "</li>" + "\n").getBytes());
 						}
 					}
-					pw.println("</ul>");
+					pw.write(("</ul>" + "\n").getBytes());
+					
+					Packet response = packet;
+					response.setPayload(pw.toByteArray());
+					channel.send(response.toBuffer(), router);
 				}
 				else if (method.equals("GET") && !item.equals("/") && !item.isEmpty()) {
 					for (String fileLine : fileContents) {
-						pw.println(fileLine);
+						pw.write((fileLine + "\n").getBytes());
 					}
+					
+					Packet response = packet;
+					response.setPayload(pw.toByteArray());
+					channel.send(response.toBuffer(), router);
 				}
 				
 				else if (method.equals("POST")) {
-					try {
+					/*try {
 						str = reader.readLine();
 						lines.add(str);
 					}
@@ -231,7 +320,7 @@ public class HttpFileServer {
 							System.exit(1);
 						}
 						
-					}
+					}*/
 					
 					File file = new File(directory + item);
 					try {
@@ -257,6 +346,11 @@ public class HttpFileServer {
 					
 					pwPost.close();
 					
+					}
+				}
+				catch(IOException e) {
+					System.err.println("I/O error... Program will terminate");					
+					System.exit(1);
 				}
 			}
 			
@@ -266,14 +360,13 @@ public class HttpFileServer {
 				}
 			}
 			
-			pw.close();
-			
 			try {
-				socket.close();
+				pw.close();
 			} catch (IOException e) {
-				System.err.println("I/O error... Program will terminate");
+				System.err.println("I/O error... Program will terminate");					
 				System.exit(1);
 			}
+		
 		}
 		
 	}

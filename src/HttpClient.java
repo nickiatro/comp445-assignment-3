@@ -29,6 +29,8 @@ public class HttpClient {
 	private static ArrayList<String> headers = new ArrayList<String>();
 	private static ArrayList<String> data = new ArrayList<String>();
 	private static PrintWriter fileOutput = null;
+	private static long sequenceNumber = 0L;
+	private static long ackNumber = 0L;
 
 	private static void getOperation(DatagramChannel channel, ByteArrayOutputStream pw, BufferedReader reader, InetSocketAddress server, InetSocketAddress router) throws IOException {
 		String version = "HTTP/1.0";
@@ -36,7 +38,7 @@ public class HttpClient {
 		
 		System.out.println("");
 		
-		pw.write(("GET " + "/" + version +"\r\n").getBytes());
+		pw.write(("GET " + "/README.md " + version +"\r\n").getBytes());
 		pw.write(("Host: " + server.getHostName() + "\r\n").getBytes());
 		if (!headers.isEmpty()) {
 			for (int i = 0; i < headers.size(); i++) {
@@ -52,7 +54,7 @@ public class HttpClient {
 			e.getMessage();
 		}
 		
-		Packet packet = new Packet(0, 1L, server.getAddress(), server.getPort(), pw.toByteArray());
+		Packet packet = new Packet(0, sequenceNumber, server.getAddress(), server.getPort(), pw.toByteArray());
 		
 		channel.send(packet.toBuffer(), router);
 		
@@ -72,20 +74,13 @@ public class HttpClient {
          channel.receive(byteBuffer);
          byteBuffer.flip();
          Packet response = Packet.fromBuffer(byteBuffer);
+         String str = "";
          
+         if (response.getType() == 0) {
+        	 str = new String(response.getPayload(), "UTF-8").trim();
          
-        /* Packet response = new Packet(Byte.toUnsignedInt(byteBuffer.get()), Integer.toUnsignedLong(byteBuffer.getInt()), null, 0, null);
-         byte[] host = new byte[]{byteBuffer.get(), byteBuffer.get(), byteBuffer.get(), byteBuffer.get()};
-         response.setPeerAddress(Inet4Address.getByAddress(host));
-         response.setPeerPort(Short.toUnsignedInt(byteBuffer.getShort()));
-         byte[] payload = new byte[byteBuffer.remaining()];
-         byteBuffer.get(payload);
-         response.setPayload(payload);
-         
-         String payloadString = new String(response.getPayload(), "UTF-8");
-         
-         System.out.println(payloadString);
-         */
+         	System.out.println(str);
+         }
 	//	socket.shutdownOutput();
 		/*
 		if (fileOutput == null) {
@@ -178,24 +173,33 @@ public class HttpClient {
 			e.getMessage();
 		}
 		
-		Packet packet = new Packet(0, 1L, server.getAddress(), server.getPort(), pw.toByteArray());
+		Packet packet = new Packet(0, sequenceNumber, server.getAddress(), server.getPort(), pw.toByteArray());
 		
-		ByteBuffer buffer = ByteBuffer.allocate(Packet.MAX_LEN);
-		buffer.put((byte) packet.getType());
-		buffer.putInt((int)packet.getSequenceNumber());
-		buffer.put(server.getAddress().getAddress());
-		buffer.putShort((short)server.getPort());
-		buffer.put(packet.getPayload());
-		
-		channel.send(buffer, router);
+		channel.send(packet.toBuffer(), router);
 		
 		channel.configureBlocking(false);
 		Selector selector = Selector.open();
 		channel.register(selector, OP_READ);
 		selector.select(5000);
-
+		
+		Set<SelectionKey> keys = selector.selectedKeys();
+		
+        if(keys.isEmpty()){
+            System.err.println("No response after timeout");
+            return;
+        }
+		
+		 ByteBuffer byteBuffer = ByteBuffer.allocate(Packet.MAX_LEN);
+         channel.receive(byteBuffer);
+         byteBuffer.flip();
+         Packet response = Packet.fromBuffer(byteBuffer);
+         
+         String str = new String(response.getPayload(), "UTF-8");
+         
+         System.out.println(str);
+         
 		//socket.shutdownOutput();
-		if (fileOutput == null) {
+		/*if (fileOutput == null) {
 			if (verbose == true) {
 				String firstLine = reader.readLine(); 
 				output = (firstLine != null) ? firstLine : "" ;
@@ -248,7 +252,7 @@ public class HttpClient {
 		if (fileOutput != null) {
 			fileOutput.close();
 		}
-		//socket.shutdownInput();
+		//socket.shutdownInput();*/
 	}
 	
 	public static void main(String[] args) {

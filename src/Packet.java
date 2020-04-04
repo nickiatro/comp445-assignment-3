@@ -7,7 +7,7 @@ import java.nio.ByteOrder;
 public class Packet {
 	
     public static final int MIN_LEN = 11;
-    public static final int MAX_LEN = 11 + 1024;
+    public static final int MAX_LEN = 1024;
 
     private int type;
     private long sequenceNumber;
