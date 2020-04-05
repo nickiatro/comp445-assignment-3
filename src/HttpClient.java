@@ -9,9 +9,11 @@ import java.nio.ByteOrder;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.Selector;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.Timer;
 import java.io.PrintWriter;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -29,10 +31,29 @@ public class HttpClient {
 	private static ArrayList<String> headers = new ArrayList<String>();
 	private static ArrayList<String> data = new ArrayList<String>();
 	private static PrintWriter fileOutput = null;
-	private static long sequenceNumber = 0L;
-	private static long ackNumber = 0L;
-
-	private static void getOperation(DatagramChannel channel, ByteArrayOutputStream pw, BufferedReader reader, InetSocketAddress server, InetSocketAddress router) throws IOException {
+	
+	public static long firstSeqNum = 0L;
+	public static long sequenceNumber = 0L;
+	public static long ackNumber = 0L;
+	public static int windowSize;
+	
+	public static ArrayList<Timer> timers = new ArrayList<Timer>();
+	public static ArrayList<Packet> packets = new ArrayList<Packet>();
+	public static boolean isSender = true;
+	public static boolean isHandShaking = true;
+	public static int index = 0; 
+	
+	public static InetSocketAddress server = null;
+	public static InetSocketAddress router = null;
+	public static DatagramChannel channel = null;
+	
+	public static BufferedReader reader = null;
+	public static Scanner file = null;
+	public static ByteArrayOutputStream pw = null;
+	
+	//TYPES: DATA = 0, ACK = 1, SYN = 2, SYN-ACK = 3
+	
+	private static void getOperation() throws IOException {
 		String version = "HTTP/1.0";
 		String output = "";
 		
@@ -54,33 +75,66 @@ public class HttpClient {
 			e.getMessage();
 		}
 		
-		Packet packet = new Packet(0, sequenceNumber, server.getAddress(), server.getPort(), pw.toByteArray());
+		if (isHandShaking){
+			
+			timers.add(new Timer());
+			timers.add(new Timer());
+			Packet syn = new Packet(2, 0L, server.getAddress(), server.getPort(), new byte[11]);
+			Packet ack = new Packet(1, 1L, server.getAddress(), server.getPort(), new byte[11]);
+			packets.add(syn);
+			packets.add(ack);
+			
+			timers.get(0).scheduleAtFixedRate(new ClientTimerTask(0), 0, 5000); //start with syn packet
+			
+			while (isHandShaking) {
+				try {
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+					e.getMessage();
+				}
+			}
+			System.exit(0);
+		}
 		
-		channel.send(packet.toBuffer(), router);
+		byte[] array = pw.toByteArray();
+		int size = array.length;
+		int chunks = 0;
 		
-		channel.configureBlocking(false);
-		Selector selector = Selector.open();
-		channel.register(selector, OP_READ);
-		selector.select(5000);
+		for (int i = 10; i > 0; i--) {
+			if (size % i == 0) {
+				chunks = i;
+				break;
+			}
+		}
 		
-		Set<SelectionKey> keys = selector.selectedKeys();
+		int chunk = size / chunks;
+
+		for (int i = 0; i <= array.length - chunk; i += chunk) {
+			Packet packet = new Packet(0, 0, server.getAddress(), server.getPort(), Arrays.copyOfRange(array, i, (i + chunk)));
+			packets.add(packet);
+		}
 		
-        if(keys.isEmpty()){
-            System.err.println("No response after timeout");
-            return;
-        }
+		if (packets.size() % 2 == 0)
+			windowSize = (int)(packets.size() / 2);
+		else
+			windowSize = (int)(packets.size() / 2) + 1;
+		long seqNum = 0L;
 		
-		 ByteBuffer byteBuffer = ByteBuffer.allocate(Packet.MAX_LEN);
-         channel.receive(byteBuffer);
-         byteBuffer.flip();
-         Packet response = Packet.fromBuffer(byteBuffer);
-         String str = "";
-         
-         if (response.getType() == 0) {
-        	 str = new String(response.getPayload(), "UTF-8").trim();
-         
-         	System.out.println(str);
+		for (int i = 0; i < packets.size(); i++) {
+			if (seqNum == 2 * windowSize - 1) {
+				seqNum = 0;
+			}
+			packets.get(i).setSequenceNumber(seqNum);
+			seqNum++;
+		}
+		
+		while (isSender) {
+		
          }
+		
+		while (!isSender) {
+			
+		}
 	//	socket.shutdownOutput();
 		/*
 		if (fileOutput == null) {
@@ -139,7 +193,7 @@ public class HttpClient {
 		//socket.shutdownInput();
 	}
 	
-	private static void postOperation(DatagramChannel channel, ByteArrayOutputStream pw, BufferedReader reader, InetSocketAddress server, InetSocketAddress router) throws IOException {
+	private static void postOperation() throws IOException {
 		//String resId = server.getPath() + ((server.getQuery() != null) ? server.getQuery() : "") ;
 		String version = "HTTP/1.0";
 		String output = "";
@@ -256,13 +310,6 @@ public class HttpClient {
 	}
 	
 	public static void main(String[] args) {
-		DatagramChannel channel = null;
-		BufferedReader reader = null;
-		Scanner file = null;
-		InetSocketAddress server = null;
-		InetSocketAddress router = null;
-		ByteArrayOutputStream pw = null;
-		
 		final int port = 8007;
 		final int routerPort = 3000;
 		String fileContents = "";
@@ -372,7 +419,7 @@ public class HttpClient {
 						}
 					}
 				}	
-				getOperation(channel, pw, reader, server, router);
+				getOperation();
 			}
 			catch (IOException e) {
 				System.err.println("I/O error... Program will terminate");
@@ -428,7 +475,7 @@ public class HttpClient {
 						}
 					}
 				}
-					postOperation(channel, pw, reader, server, router);
+					postOperation();
 			}
 			catch (IOException e) {
 				System.err.println("I/O error... Program will terminate");

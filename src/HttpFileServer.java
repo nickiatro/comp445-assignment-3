@@ -22,24 +22,30 @@ import java.util.ArrayList;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.StringTokenizer;
+import java.util.Timer;
 
 
 public class HttpFileServer {
 	
-	private static long sequenceNumber = 0L;
-	private static long ackNumber = 0L;
+	public static long sequenceNumber = 0L;
+	public static long ackNumber = 0L;
+	public static ArrayList<Packet> packets = new ArrayList<Packet>();
+	public static ArrayList<Timer> timers = new ArrayList<Timer>();
+	
+	public static DatagramChannel channel = null;
+	public static ByteArrayOutputStream pw = null;
+	public static PrintWriter pwPost = null;
+	public static ByteArrayInputStream reader = null;
+	public static ByteBuffer buffer = null;
+	public static Scanner fileScanner = null;
+	public static InetSocketAddress server = null;
+	public static InetSocketAddress router = null;
+	
+	//TYPES: DATA = 0, ACK = 1, SYN = 2, SYN-ACK = 3
 	
 	public static void main(String[] args) {
 		
 		//ServerSocket serverSocket = null;
-		DatagramChannel channel = null;
-		ByteArrayOutputStream pw = null;
-		PrintWriter pwPost = null;
-		ByteArrayInputStream reader = null;
-		ByteBuffer buffer = null;
-		Scanner fileScanner = null;
-		InetSocketAddress server = null;
-		InetSocketAddress router = null;
 		
 		boolean debugMsg = true;
 		String directory = "./";
@@ -137,23 +143,42 @@ public class HttpFileServer {
 			
 			buffer.clear();
 			
-			try {
-				channel.receive(buffer);
-			} catch (IOException e4) {
-				e4.printStackTrace();
+			ServerTimerTask handShake = new ServerTimerTask();
+			handShake.run();
+			
+			while (HttpClient.isHandShaking) {
+				
 			}
 			
-			buffer.flip();
-			Packet packet = null;
+			while (HttpClient.isSender) {
 			
-			try {
-				packet = Packet.fromBuffer(buffer);
-			} catch (IOException e4) {
-				e4.printStackTrace();
+				try {
+					channel.receive(buffer);
+				} catch (IOException e4) {
+					e4.printStackTrace();
+				}
+				
+				buffer.flip();
+				Packet packet = null;
+				
+				try {
+					packet = Packet.fromBuffer(buffer);
+				} catch (IOException e4) {
+					e4.printStackTrace();
+				}
+				
+				Packet ack = packet;
+				ack.setPayload(null);
+				ack.setType(1);
+				
+				try {
+					channel.send(ack.toBuffer(), router);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
-			
+				
 			buffer.flip();
-			
 			pw = new ByteArrayOutputStream();
 			
 			String str = "";
@@ -161,13 +186,13 @@ public class HttpFileServer {
 			StringTokenizer tokens = null;
 			
 			if (buffer.array().length > 0) {
-				try {
-					str = new String(packet.getPayload(), "UTF-8").trim();
+				//try {
+					//str = new String(packet.getPayload(), "UTF-8").trim();
 					//System.out.println(str);
-				} catch (UnsupportedEncodingException e3) {
-					e3.printStackTrace();
-					System.exit(1);
-				}
+				//} catch (UnsupportedEncodingException e3) {
+					//e3.printStackTrace();
+					//System.exit(1);
+				//}
 				lines = new ArrayList<String>();
 				tokens = new StringTokenizer(str, "\n");
 				
@@ -175,7 +200,7 @@ public class HttpFileServer {
 				{
 					lines.add(tokens.nextToken());
 				}
-			}
+			//}
 			/*try {
 				str = reader.read();
 				lines.add(str);
@@ -242,9 +267,9 @@ public class HttpFileServer {
 					pw.write(("Server: COMP 445 Assignment #3 Server" + "\n").getBytes());
 					pw.write(("\n").getBytes());
 					
-					Packet response = packet;
-					response.setPayload(pw.toByteArray());
-					channel.send(response.toBuffer(), router);
+					//Packet response = packet;
+					//response.setPayload(pw.toByteArray());
+					//channel.send(response.toBuffer(), router);
 				}
 				else if (notFound == true) {
 					pw.write(("HTTP/1.0 404 NOT FOUND" + "\n").getBytes());
@@ -253,9 +278,9 @@ public class HttpFileServer {
 					pw.write(("\n").getBytes());
 					pw.write(("Error 404: Not Found" + "\n").getBytes());
 					
-					Packet response = packet;
-					response.setPayload(pw.toByteArray());
-					channel.send(response.toBuffer(), router);
+					//Packet response = packet;
+					//response.setPayload(pw.toByteArray());
+					//channel.send(response.toBuffer(), router);
 				}
 				else if (forbidden == true) {
 					pw.write(("HTTP/1.0 403 FORBIDDEN" + "\n").getBytes());
@@ -264,9 +289,9 @@ public class HttpFileServer {
 					pw.write(("\n").getBytes());
 					pw.write(("Error 403: Forbidden").getBytes());
 					
-					Packet response = packet;
-					response.setPayload(pw.toByteArray());
-					channel.send(response.toBuffer(), router);
+					//Packet response = packet;
+					//response.setPayload(pw.toByteArray());
+					//channel.send(response.toBuffer(), router);
 				}
 				
 				if (method.equals("GET") && ok == true && item.equals("/")) {
@@ -283,18 +308,18 @@ public class HttpFileServer {
 					}
 					pw.write(("</ul>" + "\n").getBytes());
 					
-					Packet response = packet;
-					response.setPayload(pw.toByteArray());
-					channel.send(response.toBuffer(), router);
+					//Packet response = packet;
+					//response.setPayload(pw.toByteArray());
+					//channel.send(response.toBuffer(), router);
 				}
 				else if (method.equals("GET") && !item.equals("/") && !item.isEmpty()) {
 					for (String fileLine : fileContents) {
 						pw.write((fileLine + "\n").getBytes());
 					}
 					
-					Packet response = packet;
-					response.setPayload(pw.toByteArray());
-					channel.send(response.toBuffer(), router);
+					//Packet response = packet;
+					//response.setPayload(pw.toByteArray());
+					//channel.send(response.toBuffer(), router);
 				}
 				
 				else if (method.equals("POST")) {
@@ -369,5 +394,6 @@ public class HttpFileServer {
 		
 		}
 		
+	}
 	}
 }
