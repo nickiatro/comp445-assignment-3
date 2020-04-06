@@ -5,12 +5,13 @@ import java.nio.ByteOrder;
 public class ServerTimerTask extends java.util.TimerTask{
 
 	//TYPES: DATA = 0, ACK = 1, SYN = 2, SYN-ACK = 3
-	
+
 	@Override
 	public void run() {
 			ByteBuffer buffer = ByteBuffer.allocate(Packet.MAX_LEN).order(ByteOrder.BIG_ENDIAN);
-		
-			while (HttpClient.isHandShaking) {
+			boolean isHandShaking = HttpClient.isHandShaking();
+			while (isHandShaking) {
+				System.out.println(isHandShaking);
 				buffer.clear();
 				try {
 					HttpFileServer.channel.receive(buffer);
@@ -46,7 +47,38 @@ public class ServerTimerTask extends java.util.TimerTask{
 						e.printStackTrace();
 					}
 				}
+				isHandShaking = HttpClient.isHandShaking();
+			}
+			while (HttpClient.isSender()) {
+				buffer.clear();
+				try {
+					HttpFileServer.channel.receive(buffer);
+				} catch (IOException e4) {
+					e4.printStackTrace();
+				}
+				
+				buffer.flip();
+				Packet packet = null;
+				
+				try {
+					packet = Packet.fromBuffer(buffer);
+				} catch (IOException e4) {
+					e4.printStackTrace();
+				}
+				
+				if (packet.getType() == 0) {
+					if (packet.getSequenceNumber() != HttpFileServer.packets.size() - 1)
+					{
+						HttpFileServer.packets.add(packet);
+					}
+					Packet resp = packet;
+					resp.setType(1);
+					try {
+						HttpFileServer.channel.send(resp.toBuffer(), HttpFileServer.router);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
 		}
 	}
-
-}

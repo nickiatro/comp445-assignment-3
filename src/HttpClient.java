@@ -39,8 +39,8 @@ public class HttpClient {
 	
 	public static ArrayList<Timer> timers = new ArrayList<Timer>();
 	public static ArrayList<Packet> packets = new ArrayList<Packet>();
-	public static boolean isSender = true;
-	public static boolean isHandShaking = true;
+	private static boolean isSender = false;
+	private static boolean isHandShaking = true;
 	public static int index = 0; 
 	
 	public static InetSocketAddress server = null;
@@ -53,7 +53,25 @@ public class HttpClient {
 	
 	//TYPES: DATA = 0, ACK = 1, SYN = 2, SYN-ACK = 3
 	
+	public static synchronized boolean isSender() {
+		return isSender;
+	}
+	
+	public static synchronized void setIsSender(boolean isSender) {
+		HttpClient.isSender = isSender;
+	}
+	
+	public static synchronized boolean isHandShaking() {
+		return isHandShaking;
+	}
+	
+	public static synchronized void setIsHandShaking(boolean isHandShaking) {
+		HttpClient.isHandShaking = isHandShaking;
+	}
+	
 	private static void getOperation() throws IOException {
+		setIsHandShaking(false);
+		System.out.println(isHandShaking());
 		String version = "HTTP/1.0";
 		String output = "";
 		
@@ -93,9 +111,17 @@ public class HttpClient {
 					e.getMessage();
 				}
 			}
-			System.exit(0);
 		}
 		
+		System.out.println(isHandShaking);
+		
+		isHandShaking = false;
+		
+		packets.clear();
+		timers.clear();
+		
+		isSender = true;
+
 		byte[] array = pw.toByteArray();
 		int size = array.length;
 		int chunks = 0;
@@ -114,23 +140,34 @@ public class HttpClient {
 			packets.add(packet);
 		}
 		
-		if (packets.size() % 2 == 0)
-			windowSize = (int)(packets.size() / 2);
-		else
-			windowSize = (int)(packets.size() / 2) + 1;
-		long seqNum = 0L;
+		windowSize = (int)(packets.size() / 2);
 		
 		for (int i = 0; i < packets.size(); i++) {
-			if (seqNum == 2 * windowSize - 1) {
-				seqNum = 0;
-			}
-			packets.get(i).setSequenceNumber(seqNum);
-			seqNum++;
+			packets.get(i).setSequenceNumber(Long.parseLong(new Integer(i).toString()));
 		}
 		
-		while (isSender) {
-		
-         }
+		if (isSender) {
+			for (int i = 0; i < packets.size(); i++) {
+				timers.add(new Timer());
+				
+				try {
+					Thread.sleep(2000);
+				} catch (InterruptedException e) {
+					e.getMessage();
+				}
+				
+				timers.get(0).scheduleAtFixedRate(new ClientTimerTask(i), 0, 5000);
+			}
+			
+			while (isSender) {
+				try {
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+					e.getMessage();
+				}
+			}
+			
+		}
 		
 		while (!isSender) {
 			

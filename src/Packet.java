@@ -108,6 +108,10 @@ public class Packet {
 	        return p;
 	 }
 
+	public boolean isAck() {
+		return ack;
+	}
+
 
 
 }

@@ -31,6 +31,7 @@ public class HttpFileServer {
 	public static long ackNumber = 0L;
 	public static ArrayList<Packet> packets = new ArrayList<Packet>();
 	public static ArrayList<Timer> timers = new ArrayList<Timer>();
+	public static Timer timer = new Timer();
 	
 	public static DatagramChannel channel = null;
 	public static ByteArrayOutputStream pw = null;
@@ -143,38 +144,22 @@ public class HttpFileServer {
 			
 			buffer.clear();
 			
-			ServerTimerTask handShake = new ServerTimerTask();
-			handShake.run();
+			timer.schedule(new ServerTimerTask(), 0);
 			
-			while (HttpClient.isHandShaking) {
-				
+			while (HttpClient.isHandShaking() == true) {
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					e.getMessage();
+				}
+				//System.out.println(HttpClient.isHandShaking());
 			}
 			
-			while (HttpClient.isSender) {
-			
+			while (HttpClient.isSender() == true) {
 				try {
-					channel.receive(buffer);
-				} catch (IOException e4) {
-					e4.printStackTrace();
-				}
-				
-				buffer.flip();
-				Packet packet = null;
-				
-				try {
-					packet = Packet.fromBuffer(buffer);
-				} catch (IOException e4) {
-					e4.printStackTrace();
-				}
-				
-				Packet ack = packet;
-				ack.setPayload(null);
-				ack.setType(1);
-				
-				try {
-					channel.send(ack.toBuffer(), router);
-				} catch (IOException e) {
-					e.printStackTrace();
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+					e.getMessage();
 				}
 			}
 				

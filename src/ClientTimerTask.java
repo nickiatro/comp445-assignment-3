@@ -36,7 +36,7 @@ public class ClientTimerTask extends java.util.TimerTask {
 
 	@Override
 	public void run() {
-		if (HttpClient.isHandShaking) {
+		if (HttpClient.isHandShaking()) {
 			try {
 				HttpClient.channel.send(HttpClient.packets.get(index).toBuffer(), HttpClient.router);
 			} catch (IOException e1) {
@@ -60,7 +60,7 @@ public class ClientTimerTask extends java.util.TimerTask {
 				e1.printStackTrace();
 			}
 			try {
-				selector.select(4000);
+				selector.select(3000);
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			}
@@ -93,11 +93,11 @@ public class ClientTimerTask extends java.util.TimerTask {
 	         }
 	         else if (HttpClient.packets.get(index).getType() == 1 && response.getType() == 1 && response.getSequenceNumber() == HttpClient.packets.get(index).getSequenceNumber()) {
 	        	 HttpClient.packets.get(index).setAck(true);
-	        	 HttpClient.isHandShaking = false;
+	        	 HttpClient.setIsHandShaking(false);
 	        	 HttpClient.timers.get(index).cancel();
 	         }
 		}
-		else if (HttpClient.isSender) {
+		else if (HttpClient.isSender()) {
 			try {
 				HttpClient.channel.send(HttpClient.packets.get(index).toBuffer(), HttpClient.router);
 			} catch (IOException e1) {
@@ -121,7 +121,7 @@ public class ClientTimerTask extends java.util.TimerTask {
 				e1.printStackTrace();
 			}
 			try {
-				selector.select(5000);
+				selector.select(3000);
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			}
