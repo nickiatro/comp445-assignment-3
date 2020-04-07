@@ -27,6 +27,7 @@ import java.util.Timer;
 
 public class HttpFileServer {
 	
+	
 	public static long sequenceNumber = 0L;
 	public static long ackNumber = 0L;
 	public static ArrayList<Packet> packets = new ArrayList<Packet>();
@@ -146,27 +147,33 @@ public class HttpFileServer {
 			
 			timer.schedule(new ServerTimerTask(), 0);
 			
-			while (HttpClient.isHandShaking() == true) {
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-					e.getMessage();
-				}
-				//System.out.println(HttpClient.isHandShaking());
+			while (Client.getInstance().isHandShaking() == true) {
+				
 			}
 			
-			while (HttpClient.isSender() == true) {
+			while (Client.getInstance().isSender() == true) {
 				try {
 					Thread.sleep(1);
 				} catch (InterruptedException e) {
 					e.getMessage();
 				}
-			}
 				
+			}
+			
+			
 			buffer.flip();
 			pw = new ByteArrayOutputStream();
 			
 			String str = "";
+			
+			for (int i = 0; i < packets.size(); i++) {
+				try {
+					str += new String(packets.get(i).getPayload(), "UTF-8");
+				} catch (UnsupportedEncodingException e) {
+					e.printStackTrace();
+				}
+			}
+			
 			ArrayList<String> lines = null;
 			StringTokenizer tokens = null;
 			
@@ -252,9 +259,11 @@ public class HttpFileServer {
 					pw.write(("Server: COMP 445 Assignment #3 Server" + "\n").getBytes());
 					pw.write(("\n").getBytes());
 					
-					//Packet response = packet;
-					//response.setPayload(pw.toByteArray());
+					packets.get(0).setPayload(pw.toByteArray());
+					packets.get(0).setSequenceNumber(19L);
 					//channel.send(response.toBuffer(), router);
+					timers.add(new Timer());
+					timers.get(0).scheduleAtFixedRate(new ServerTimerTask(0), 0, 5000);
 				}
 				else if (notFound == true) {
 					pw.write(("HTTP/1.0 404 NOT FOUND" + "\n").getBytes());
@@ -263,9 +272,11 @@ public class HttpFileServer {
 					pw.write(("\n").getBytes());
 					pw.write(("Error 404: Not Found" + "\n").getBytes());
 					
-					//Packet response = packet;
-					//response.setPayload(pw.toByteArray());
+					packets.get(0).setPayload(pw.toByteArray());
+					packets.get(0).setSequenceNumber(19L);
 					//channel.send(response.toBuffer(), router);
+					timers.add(new Timer());
+					timers.get(0).scheduleAtFixedRate(new ServerTimerTask(0), 0, 5000);
 				}
 				else if (forbidden == true) {
 					pw.write(("HTTP/1.0 403 FORBIDDEN" + "\n").getBytes());
@@ -274,9 +285,11 @@ public class HttpFileServer {
 					pw.write(("\n").getBytes());
 					pw.write(("Error 403: Forbidden").getBytes());
 					
-					//Packet response = packet;
-					//response.setPayload(pw.toByteArray());
+					packets.get(0).setPayload(pw.toByteArray());
+					packets.get(0).setSequenceNumber(19L);
 					//channel.send(response.toBuffer(), router);
+					timers.add(new Timer());
+					timers.get(0).scheduleAtFixedRate(new ServerTimerTask(0), 0, 5000);
 				}
 				
 				if (method.equals("GET") && ok == true && item.equals("/")) {
@@ -293,15 +306,20 @@ public class HttpFileServer {
 					}
 					pw.write(("</ul>" + "\n").getBytes());
 					
-					//Packet response = packet;
-					//response.setPayload(pw.toByteArray());
+					packets.get(1).setPayload(pw.toByteArray());
+					packets.get(1).setSequenceNumber(20L);
 					//channel.send(response.toBuffer(), router);
+					timers.add(new Timer());
+					timers.get(1).scheduleAtFixedRate(new ServerTimerTask(1), 0, 5000);
 				}
 				else if (method.equals("GET") && !item.equals("/") && !item.isEmpty()) {
 					for (String fileLine : fileContents) {
 						pw.write((fileLine + "\n").getBytes());
 					}
-					
+					packets.get(1).setPayload(pw.toByteArray());
+					packets.get(1).setSequenceNumber(20L);
+					//channel.send(response.toBuffer(), router);
+					timer.scheduleAtFixedRate(new ServerTimerTask(1), 0, 5000);
 					//Packet response = packet;
 					//response.setPayload(pw.toByteArray());
 					//channel.send(response.toBuffer(), router);
@@ -345,14 +363,15 @@ public class HttpFileServer {
 						ok = false;
 					}
 					
-					for (int i = 0; i < lines.size(); i++) {
-						if (lines.get(i).equals("")) {
-							for (int j = i + 1; j < lines.size(); j++) {
+					//for (int i = 0; i < lines.size(); i++) {
+						//if (lines.get(i).equals("")) {
+						//	for (int j = i + 1; j < lines.size(); j++) 
+								for (int j = 0; j < lines.size(); j++){
 								pwPost.println(lines.get(j));
 							}
-							break;
-						}
-					}
+						//	break;
+						//}
+					//}
 					
 					pwPost.close();
 					

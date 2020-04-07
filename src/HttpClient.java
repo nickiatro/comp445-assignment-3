@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.Timer;
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -27,65 +28,25 @@ import static java.nio.channels.SelectionKey.OP_READ;
 
 public class HttpClient {
 	
-	private static boolean verbose = false;
-	private static ArrayList<String> headers = new ArrayList<String>();
-	private static ArrayList<String> data = new ArrayList<String>();
-	private static PrintWriter fileOutput = null;
-	
-	public static long firstSeqNum = 0L;
-	public static long sequenceNumber = 0L;
-	public static long ackNumber = 0L;
-	public static int windowSize;
-	
-	public static ArrayList<Timer> timers = new ArrayList<Timer>();
-	public static ArrayList<Packet> packets = new ArrayList<Packet>();
-	private static boolean isSender = false;
-	private static boolean isHandShaking = true;
-	public static int index = 0; 
-	
-	public static InetSocketAddress server = null;
-	public static InetSocketAddress router = null;
-	public static DatagramChannel channel = null;
-	
-	public static BufferedReader reader = null;
-	public static Scanner file = null;
-	public static ByteArrayOutputStream pw = null;
-	
 	//TYPES: DATA = 0, ACK = 1, SYN = 2, SYN-ACK = 3
 	
-	public static synchronized boolean isSender() {
-		return isSender;
-	}
-	
-	public static synchronized void setIsSender(boolean isSender) {
-		HttpClient.isSender = isSender;
-	}
-	
-	public static synchronized boolean isHandShaking() {
-		return isHandShaking;
-	}
-	
-	public static synchronized void setIsHandShaking(boolean isHandShaking) {
-		HttpClient.isHandShaking = isHandShaking;
-	}
-	
 	private static void getOperation() throws IOException {
-		setIsHandShaking(false);
-		System.out.println(isHandShaking());
+		System.out.println(Client.getInstance().isHandShaking());
 		String version = "HTTP/1.0";
 		String output = "";
 		
 		System.out.println("");
 		
-		pw.write(("GET " + "/README.md " + version +"\r\n").getBytes());
-		pw.write(("Host: " + server.getHostName() + "\r\n").getBytes());
-		if (!headers.isEmpty()) {
-			for (int i = 0; i < headers.size(); i++) {
-				pw.write((headers.get(i) + "\r\n").getBytes());
+		Client.getInstance().getPw().write(("GET " + "/hello.txt " + version +"\r\n").getBytes());
+		Client.getInstance().getPw().write(("Host: " + Client.getInstance().getServer().getHostName() + "\r\n").getBytes());
+		
+		if (!Client.getInstance().getHeaders().isEmpty()) {
+			for (int i = 0; i < Client.getInstance().getHeaders().size(); i++) {
+				Client.getInstance().getPw().write((Client.getInstance().getHeaders().get(i) + "\r\n").getBytes());
 			}
 		}
-		pw.write(("\r\n").getBytes());
-		pw.flush();
+		Client.getInstance().getPw().write(("\r\n").getBytes());
+		Client.getInstance().getPw().flush();
 		
 		try {
 			Thread.sleep(1000);
@@ -93,18 +54,18 @@ public class HttpClient {
 			e.getMessage();
 		}
 		
-		if (isHandShaking){
+		if (Client.getInstance().isHandShaking()){
 			
-			timers.add(new Timer());
-			timers.add(new Timer());
-			Packet syn = new Packet(2, 0L, server.getAddress(), server.getPort(), new byte[11]);
-			Packet ack = new Packet(1, 1L, server.getAddress(), server.getPort(), new byte[11]);
-			packets.add(syn);
-			packets.add(ack);
+			Client.getInstance().getTimers().add(new Timer());
+			Client.getInstance().getTimers().add(new Timer());
+			Packet syn = new Packet(2, 0L, Client.getInstance().getServer().getAddress(), Client.getInstance().getServer().getPort(), new byte[11]);
+			Packet ack = new Packet(1, 1L, Client.getInstance().getServer().getAddress(), Client.getInstance().getServer().getPort(), new byte[11]);
+			Client.getInstance().getPackets().add(syn);
+			Client.getInstance().getPackets().add(ack);
 			
-			timers.get(0).scheduleAtFixedRate(new ClientTimerTask(0), 0, 5000); //start with syn packet
+			Client.getInstance().getTimers().get(0).scheduleAtFixedRate(new ClientTimerTask(0), 0, 5000); //start with syn packet
 			
-			while (isHandShaking) {
+			while (Client.getInstance().isHandShaking()) {
 				try {
 					Thread.sleep(1);
 				} catch (InterruptedException e) {
@@ -113,16 +74,16 @@ public class HttpClient {
 			}
 		}
 		
-		System.out.println(isHandShaking);
+		System.out.println(Client.getInstance().isHandShaking());
 		
-		isHandShaking = false;
+		Client.getInstance().setHandShaking(false);
 		
-		packets.clear();
-		timers.clear();
+		Client.getInstance().getPackets().clear();
+		Client.getInstance().getTimers().clear();
 		
-		isSender = true;
+		Client.getInstance().setSender(true);
 
-		byte[] array = pw.toByteArray();
+		byte[] array = Client.getInstance().getPw().toByteArray();
 		int size = array.length;
 		int chunks = 0;
 		
@@ -136,19 +97,20 @@ public class HttpClient {
 		int chunk = size / chunks;
 
 		for (int i = 0; i <= array.length - chunk; i += chunk) {
-			Packet packet = new Packet(0, 0, server.getAddress(), server.getPort(), Arrays.copyOfRange(array, i, (i + chunk)));
-			packets.add(packet);
+			Packet packet = new Packet(0, 0, Client.getInstance().getServer().getAddress(), Client.getInstance().getServer().getPort(), Arrays.copyOfRange(array, i, (i + chunk)));
+			Client.getInstance().getPackets().add(packet);
 		}
 		
-		windowSize = (int)(packets.size() / 2);
+		Client.getInstance().setWindowSize((int)(Client.getInstance().getPackets().size() / 2));
 		
-		for (int i = 0; i < packets.size(); i++) {
-			packets.get(i).setSequenceNumber(Long.parseLong(new Integer(i).toString()));
+		for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {
+			Client.getInstance().getPackets().get(i).setSequenceNumber(Long.parseLong(new Integer(i).toString()));
 		}
 		
-		if (isSender) {
-			for (int i = 0; i < packets.size(); i++) {
-				timers.add(new Timer());
+		
+		if (Client.getInstance().isSender()) {
+			for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {
+				Client.getInstance().getTimers().add(new Timer());
 				
 				try {
 					Thread.sleep(2000);
@@ -156,26 +118,60 @@ public class HttpClient {
 					e.getMessage();
 				}
 				
-				timers.get(0).scheduleAtFixedRate(new ClientTimerTask(i), 0, 5000);
+				Client.getInstance().getTimers().get(i).scheduleAtFixedRate(new ClientTimerTask(i), 0, 5000);
 			}
 			
-			while (isSender) {
+			while (Client.getInstance().isSender()) {
 				try {
 					Thread.sleep(1);
 				} catch (InterruptedException e) {
 					e.getMessage();
 				}
+				
+				for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {
+					if (!Client.getInstance().getPackets().get(i).isAck())
+						break;
+					else if (i ==  Client.getInstance().getPackets().size() - 1 && Client.getInstance().getPackets().get(i).isAck()) {
+						Client.getInstance().setSender(false);
+						Client.getInstance().setReceiver(true);
+					}
+				}
 			}
 			
 		}
 		
-		while (!isSender) {
-			
+		Client.getInstance().getPackets().clear();
+		Client.getInstance().getTimers().clear();
+		
+		
+		//Client.getInstance().setReceiver(true);
+		
+		Client.getInstance().getTimers().add(new Timer());
+		Client.getInstance().getTimers().get(0).schedule(new ClientTimerTask(0), 0);
+		
+		while (Client.getInstance().isReceiver()) {
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+				e.getMessage();
+			}
 		}
+		
+		String str = "";
+		
+		for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {
+			try {
+				str += new String(Client.getInstance().getPackets().get(i).getPayload(), "UTF-8");
+			} catch (UnsupportedEncodingException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		
 	//	socket.shutdownOutput();
 		/*
-		if (fileOutput == null) {
-			if (verbose == true) {
+		if (Client.getInstance().getFileOutput() == null) {
+			if (Client.getInstance().getVerbose() == true) {
 				String firstLine = reader.readLine(); 
 				output = (firstLine != null) ? firstLine : "" ;
 				System.out.println(output);
@@ -185,7 +181,7 @@ public class HttpClient {
 					System.out.println((output != null ? output : ""));
 				}
 			}
-			else if (verbose == false) {
+			else if (Client.getInstance().getVerbose() == false) {
 				String firstLine = reader.readLine(); 
 				output = (firstLine != null) ? firstLine : "" ;
 				
@@ -199,18 +195,18 @@ public class HttpClient {
 				}
 			}
 		}
-		if (fileOutput != null) {
-			if (verbose == true) {
+		if (Client.getInstance().getFileOutput() != null) {
+			if (Client.getInstance().getVerbose() == true) {
 				String firstLine = reader.readLine(); 
 				output = (firstLine != null) ? firstLine : "" ;
-				fileOutput.println(output);
+				Client.getInstance().getFileOutput().println(output);
 				
 				while (output != null) {
 					output = reader.readLine();
-					fileOutput.println((output != null ? output : ""));
+					Client.getInstance().getFileOutput().println((output != null ? output : ""));
 				}
 			}
-			else if (verbose == false) {
+			else if (Client.getInstance().getVerbose() == false) {
 				String firstLine = reader.readLine(); 
 				output = (firstLine != null) ? firstLine : "" ;
 				
@@ -220,43 +216,44 @@ public class HttpClient {
 				
 				while (output != null) {
 					output = reader.readLine();
-					fileOutput.println((output != null ? output : ""));
+					Client.getInstance().getFileOutput().println((output != null ? output : ""));
 				}
 			}
 		}
-		if (fileOutput != null) {
-			fileOutput.close();
+		if (Client.getInstance().getFileOutput() != null) {
+			Client.getInstance().getFileOutput().close();
 		} */
 		//socket.shutdownInput();
 	}
 	
 	private static void postOperation() throws IOException {
-		//String resId = server.getPath() + ((server.getQuery() != null) ? server.getQuery() : "") ;
+		//String resId = Client.getInstance().getServer().getPath() + ((Client.getInstance().getServer().getQuery() != null) ? Client.getInstance().getServer().getQuery() : "") ;
 		String version = "HTTP/1.0";
 		String output = "";
 		int length = 0;
 		
-		if (!data.isEmpty()) {
-			for (int i = 0; i < data.size(); i++) {
-				length += data.get(i).length();
+		if (!Client.getInstance().getData().isEmpty()) {
+			for (int i = 0; i < Client.getInstance().getData().size(); i++) {
+				length += Client.getInstance().getData().get(i).length();
 			}
 		}
 		
-		//pw.write("POST " + resId + " " + version +"\r\n");
-		pw.write(("Host: " + server.getHostName()  + " \r\n").getBytes());
-		pw.write(("Content-Length: " + length + "\r\n").getBytes());
-		if (!headers.isEmpty()) {
-			for (int i = 0; i < headers.size(); i++) {
-				pw.write((headers.get(i) + "\r\n").getBytes());
+		Client.getInstance().getPw().write(("POST " + " /helloWorld3.txt " + version +"\r\n").getBytes());
+		Client.getInstance().getPw().write(("Host: " + Client.getInstance().getServer().getHostName()  + " \r\n").getBytes());
+		Client.getInstance().getPw().write(("Content-Length: " + length + "\r\n").getBytes());
+		if (!Client.getInstance().getHeaders().isEmpty()) {
+			for (int i = 0; i < Client.getInstance().getHeaders().size(); i++) {
+				Client.getInstance().getPw().write((Client.getInstance().getHeaders().get(i) + "\r\n").getBytes());
 			}
 		}
-		pw.write(("\r\n").getBytes());
-		if (!data.isEmpty()) {
-			for (int i = 0; i < data.size(); i++) {
-				pw.write(data.get(i).getBytes());
+		Client.getInstance().getPw().write(("\r\n").getBytes());
+		if (!Client.getInstance().getData().isEmpty()) {
+			for (int i = 0; i < Client.getInstance().getData().size(); i++) {
+				Client.getInstance().getPw().write(Client.getInstance().getData().get(i).getBytes());
 			}
 		}
-		pw.flush();
+		Client.getInstance().getPw().flush();
+		
 		
 		try {
 			Thread.sleep(1000);
@@ -264,34 +261,127 @@ public class HttpClient {
 			e.getMessage();
 		}
 		
-		Packet packet = new Packet(0, sequenceNumber, server.getAddress(), server.getPort(), pw.toByteArray());
+		if (Client.getInstance().isHandShaking()){
+			
+			Client.getInstance().getTimers().add(new Timer());
+			Client.getInstance().getTimers().add(new Timer());
+			Packet syn = new Packet(2, 0L, Client.getInstance().getServer().getAddress(), Client.getInstance().getServer().getPort(), new byte[11]);
+			Packet ack = new Packet(1, 1L, Client.getInstance().getServer().getAddress(), Client.getInstance().getServer().getPort(), new byte[11]);
+			Client.getInstance().getPackets().add(syn);
+			Client.getInstance().getPackets().add(ack);
+			
+			Client.getInstance().getTimers().get(0).scheduleAtFixedRate(new ClientTimerTask(0), 0, 5000); //start with syn packet
+			
+			while (Client.getInstance().isHandShaking()) {
+				try {
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+					e.getMessage();
+				}
+			}
+		}
 		
-		channel.send(packet.toBuffer(), router);
+		System.out.println(Client.getInstance().isHandShaking());
 		
-		channel.configureBlocking(false);
-		Selector selector = Selector.open();
-		channel.register(selector, OP_READ);
-		selector.select(5000);
+		Client.getInstance().setHandShaking(false);
 		
-		Set<SelectionKey> keys = selector.selectedKeys();
+		Client.getInstance().getPackets().clear();
+		Client.getInstance().getTimers().clear();
 		
-        if(keys.isEmpty()){
-            System.err.println("No response after timeout");
-            return;
-        }
+		Client.getInstance().setSender(true);
+
+		byte[] array = Client.getInstance().getPw().toByteArray();
+		int size = array.length;
+		int chunks = 0;
 		
-		 ByteBuffer byteBuffer = ByteBuffer.allocate(Packet.MAX_LEN);
-         channel.receive(byteBuffer);
-         byteBuffer.flip();
-         Packet response = Packet.fromBuffer(byteBuffer);
-         
-         String str = new String(response.getPayload(), "UTF-8");
-         
-         System.out.println(str);
-         
+		if (size < 1013) {
+			for (int i = 10; i > 0; i--) {
+				if (size % i == 0) {
+					chunks = i;
+					break;
+				}
+			}
+		}
+		else {
+			chunks = (int) Math.ceil((double)size / (double)1013);
+		}
+		
+		int chunk = size / chunks;
+
+		for (int i = 0; i <= array.length - chunk; i += chunk) {
+			Packet packet = new Packet(0, 0, Client.getInstance().getServer().getAddress(), Client.getInstance().getServer().getPort(), Arrays.copyOfRange(array, i, (i + chunk)));
+			Client.getInstance().getPackets().add(packet);
+		}
+		ArrayList<Packet> pk = Client.getInstance().getPackets();
+		Client.getInstance().setWindowSize((int)(Client.getInstance().getPackets().size() / 2));
+		
+		for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {
+			Client.getInstance().getPackets().get(i).setSequenceNumber(Long.parseLong(new Integer(i).toString()));
+		}
+		
+		
+		if (Client.getInstance().isSender()) {
+			for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {
+				Client.getInstance().getTimers().add(new Timer());
+				
+				try {
+					Thread.sleep(2000);
+				} catch (InterruptedException e) {
+					e.getMessage();
+				}
+				
+				Client.getInstance().getTimers().get(i).scheduleAtFixedRate(new ClientTimerTask(i), 0, 5000);
+			}
+			
+			while (Client.getInstance().isSender()) {
+				try {
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+					e.getMessage();
+				}
+				
+				for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {
+					if (!Client.getInstance().getPackets().get(i).isAck())
+						break;
+					else if (i ==  Client.getInstance().getPackets().size() - 1 && Client.getInstance().getPackets().get(i).isAck()) {
+						Client.getInstance().setSender(false);
+						Client.getInstance().setReceiver(true);
+					}
+				}
+			}
+			
+		}
+		
+		Client.getInstance().getPackets().clear();
+		Client.getInstance().getTimers().clear();
+		
+		
+		//Client.getInstance().setReceiver(true);
+		
+		Client.getInstance().getTimers().add(new Timer());
+		Client.getInstance().getTimers().get(0).schedule(new ClientTimerTask(0), 0);
+		
+		while (Client.getInstance().isReceiver()) {
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+				e.getMessage();
+			}
+		}
+		
+		String str = "";
+		
+		for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {
+			try {
+				str += new String(Client.getInstance().getPackets().get(i).getPayload(), "UTF-8");
+			} catch (UnsupportedEncodingException e) {
+				e.printStackTrace();
+			}
+		}
+		        
 		//socket.shutdownOutput();
-		/*if (fileOutput == null) {
-			if (verbose == true) {
+		/*if (Client.getInstance().getFileOutput() == null) {
+			if (Client.getInstance().getVerbose() == true) {
 				String firstLine = reader.readLine(); 
 				output = (firstLine != null) ? firstLine : "" ;
 				System.out.println(output);
@@ -301,7 +391,7 @@ public class HttpClient {
 					System.out.println((output != null ? output : ""));
 				}
 			}
-			else if (verbose == false) {
+			else if (Client.getInstance().getVerbose() == false) {
 				String firstLine = reader.readLine(); 
 				output = (firstLine != null) ? firstLine : "" ;
 				
@@ -315,18 +405,18 @@ public class HttpClient {
 				}
 			}
 		}
-		if (fileOutput != null) {
-			if (verbose == true) {
+		if (Client.getInstance().getFileOutput() != null) {
+			if (Client.getInstance().getVerbose() == true) {
 				String firstLine = reader.readLine(); 
 				output = (firstLine != null) ? firstLine : "" ;
-				fileOutput.println(output);
+				Client.getInstance().getFileOutput().println(output);
 				
 				while (output != null) {
 					output = reader.readLine();
-					fileOutput.println((output != null ? output : ""));
+					Client.getInstance().getFileOutput().println((output != null ? output : ""));
 				}
 			}
-			else if (verbose == false) {
+			else if (Client.getInstance().getVerbose() == false) {
 				String firstLine = reader.readLine(); 
 				output = (firstLine != null) ? firstLine : "" ;
 				
@@ -336,17 +426,18 @@ public class HttpClient {
 				
 				while (output != null) {
 					output = reader.readLine();
-					fileOutput.println((output != null ? output : ""));
+					Client.getInstance().getFileOutput().println((output != null ? output : ""));
 				}
 			}
 		}
-		if (fileOutput != null) {
-			fileOutput.close();
+		if (Client.getInstance().getFileOutput() != null) {
+			Client.getInstance().getFileOutput().close();
 		}
 		//socket.shutdownInput();*/
 	}
 	
 	public static void main(String[] args) {
+		
 		final int port = 8007;
 		final int routerPort = 3000;
 		String fileContents = "";
@@ -381,18 +472,18 @@ public class HttpClient {
 		
 		if (args[1].equals("help") && args[2].equals("get") && args.length == 3) {
 			System.out.println("httpc help get\r\n" + 
-					"usage: httpc get [-v] [-h key:value] InetAddress\nGet executes a HTTP GET request for a given InetAddress.\n  -v\t\tPrints the detail of the response such as protocol, status,\n and headers.\n  -h key:value\tAssociates headers to HTTP Request with the format\n'key:value'.");
+					"usage: httpc get [-v] [-h key:value] InetAddress\nGet executes a HTTP GET request for a given InetAddress.\n  -v\t\tPrints the detail of the response such as protocol, status,\n and Client.getInstance().getHeaders().\n  -h key:value\tAssociates Client.getInstance().getHeaders() to HTTP Request with the format\n'key:value'.");
 			System.exit(0);
 		}
 		
 		if (args[1].equals("help") && args[2].equals("post") && args.length == 3) {
 			System.out.println("httpc help post\r\n" +  
-					"usage: httpc post [-v] [-h key:value] [-d inline-data] [-f file] InetAddress\nPost executes a HTTP POST request for a given InetAddress with inline data or from\nfile.\n\n  -v\t\t  Prints the detail of the response such as protocol, status,\nand headers.\n  -h key:value\t  Associates headers to HTTP Request with the format\n'key:value'.\n  -d string\t  Associates an inline data to the body HTTP POST request.\n  -f file\t  Associates the content of a file to the body HTTP POST\nrequest.\n\nEither [-d] or [-f] can be used but not both.");
+					"usage: httpc post [-v] [-h key:value] [-d inline-Client.getInstance().getData()] [-f Client.getInstance().getFile()] InetAddress\nPost executes a HTTP POST request for a given InetAddress with inline Client.getInstance().getData() or from\nfile.\n\n  -v\t\t  Prints the detail of the response such as protocol, status,\nand Client.getInstance().getHeaders().\n  -h key:value\t  Associates Client.getInstance().getHeaders() to HTTP Request with the format\n'key:value'.\n  -d string\t  Associates an inline Client.getInstance().getData() to the body HTTP POST request.\n  -f Client.getInstance().getFile()\t  Associates the content of a Client.getInstance().getFile() to the body HTTP POST\nrequest.\n\nEither [-d] or [-f] can be used but not both.");
 			System.exit(0);
 		}
 		
 		try {
-			server = new InetSocketAddress(InetAddress.getByName(args[args.length - 1]), port);
+			Client.getInstance().setServer(new InetSocketAddress(InetAddress.getByName(args[args.length - 1]), port));
 		}
 		catch (UnknownHostException e) {
 			System.out.println("Bad InetAddress... program will terminate");
@@ -400,7 +491,7 @@ public class HttpClient {
 		}
 		
 		try {
-			router = new InetSocketAddress(InetAddress.getByName(args[args.length - 1]), routerPort);
+			Client.getInstance().setRouter(new InetSocketAddress(InetAddress.getByName(args[args.length - 1]), routerPort));
 		}
 		catch (UnknownHostException e) {
 			System.out.println("Bad InetAddress... program will terminate");
@@ -408,10 +499,10 @@ public class HttpClient {
 		}
 		
 		
-		//hostName = server.getHostName();
+		//hostName = Client.getInstance().getServer().getHostName();
 		
 		try {
-			channel = DatagramChannel.open();
+			Client.getInstance().setChannel(DatagramChannel.open());
 		}
 		//catch(UnknownHostException e1) {
 			//System.err.println("Unknown host... Program will terminate");
@@ -423,7 +514,7 @@ public class HttpClient {
 		}
 		
 
-		pw = new ByteArrayOutputStream();
+		Client.getInstance().setPw(new ByteArrayOutputStream());
 		/*
 		try {
 			reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -437,11 +528,11 @@ public class HttpClient {
 			try {
 				for (int i = 0; i < args.length; i++) {
 					if (args[i].equals("-v")) {
-						verbose = true;
+						Client.getInstance().setVerbose(true);
 					}
 					if (args[i].equals("-o")) {
 						try {
-							fileOutput = new PrintWriter(new File(args[i+1]));
+							Client.getInstance().setFileOutput(new PrintWriter(new File(args[i+1])));
 						}
 						catch (IOException e) {
 							System.err.println("I/O error... Program will terminate");
@@ -450,8 +541,8 @@ public class HttpClient {
 					}
 					if (args[i].equals("-h")) {
 						for (int j = i + 1; j < args.length; j++) { 
-							if (args[j].matches("\\S+:\\S+") && !args[j].equals(server.toString())) {
-								headers.add(args[j]);
+							if (args[j].matches("\\S+:\\S+") && !args[j].equals(Client.getInstance().getServer().toString())) {
+								Client.getInstance().getHeaders().add(args[j]);
 							}
 						}
 					}
@@ -467,11 +558,11 @@ public class HttpClient {
 			try {
 				for (int i = 0; i < args.length; i++) {
 					if (args[i].equals("-v")) {
-						verbose = true;
+						Client.getInstance().setVerbose(true);
 					}
 					if (args[i].equals("-o")) {
 						try {
-							fileOutput = new PrintWriter(new File(args[i+1]));
+							Client.getInstance().setFileOutput(new PrintWriter(new File(args[i+1])));
 						}
 						catch (IOException e) {
 							System.err.println("I/O error... Program will terminate");
@@ -480,35 +571,35 @@ public class HttpClient {
 					}
 					if (args[i].equals("-h")) {
 						for (int j = i + 1; j < args.length; j++) { 
-							if (args[j].matches("\\S+:\\S+") && !args[j].equals(server.toString())) {
-								headers.add(args[j]);
+							if (args[j].matches("\\S+:\\S+") && !args[j].equals(Client.getInstance().getServer().toString())) {
+								Client.getInstance().getHeaders().add(args[j]);
 							}
 						}
 					}
 					if (args[i].equals("-d")) {
 						for (int j = i + 1; j < args.length; j++) {
 							if (args[j].matches("\\{\"\\S+\":\\s.\\}") || args[j].matches("\\{\"\\S+\":\\s\".\"\\}")) {
-								data.add(args[j]);
+								Client.getInstance().getData().add(args[j]);
 							}
 						}
 					}
 					if (args[i].equals("-f")) {
 						try {
-							file = new Scanner(new File(args[i+1]));
+							Client.getInstance().setFile(new Scanner(new File(args[i+1])));
 						}
 						catch (IOException e) {
 							System.err.println("I/O error... Program will terminate");
 							System.exit(1);
 						}
 						
-						while (file.hasNext()) {
-							fileContents += file.next();
+						while (Client.getInstance().getFile().hasNext()) {
+							fileContents += Client.getInstance().getFile().next();
 						}
 						
 						StringTokenizer tokens = new StringTokenizer(fileContents, ",");
 						
 						while(tokens.hasMoreTokens()) {
-							data.add(tokens.nextToken());
+							Client.getInstance().getData().add(tokens.nextToken());
 						}
 					}
 				}
