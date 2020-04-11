@@ -62,6 +62,17 @@ public class HttpFileServer {
 		return port;
 	}
 	
+	public static boolean isUnique(Packet packet) {
+		for (int i = 0; i < packets.size(); i++)
+		{
+			if (packet.getSequenceNumber() == packets.get(i).getSequenceNumber()) {
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
 	public static void main(String[] args) {
 		
 		//ServerSocket serverSocket = null;
@@ -399,7 +410,7 @@ public class HttpFileServer {
 						}
 					}
 					
-					if (size <= 1013) {
+					else if (size <= 1013) {
 						packets.get(1).setPayload(pw.toByteArray());
 						packets.get(1).setSequenceNumber(1L);
 						//channel.send(response.toBuffer(), router);

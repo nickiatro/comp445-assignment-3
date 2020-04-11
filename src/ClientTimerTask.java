@@ -43,9 +43,6 @@ public class ClientTimerTask extends java.util.TimerTask {
 	public void run() {
 		ByteBuffer byteBuffer = ByteBuffer.allocate(Packet.MAX_LEN).order(ByteOrder.BIG_ENDIAN);
 		if (Client.getInstance().isHandShaking()) {
-			if (Client.getInstance().getPackets().get(index).isAck()) {
-				Client.getInstance().getTimers().get(index).cancel();
-			}
 			try {
 				Client.getInstance().getChannel().send(Client.getInstance().getPackets().get(index).toBuffer(), Client.getInstance().getRouter());
 			} catch (IOException e1) {
@@ -69,7 +66,7 @@ public class ClientTimerTask extends java.util.TimerTask {
 				e1.printStackTrace();
 			}
 			try {
-				selector.select(3000);
+				selector.select(timeout);
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			}
@@ -106,9 +103,6 @@ public class ClientTimerTask extends java.util.TimerTask {
 	         }
 		}
 		else if (Client.getInstance().isSender()) {
-			if (Client.getInstance().getPackets().get(index).isAck()) {
-				Client.getInstance().getTimers().get(index).cancel();
-			}
 			try {
 				Client.getInstance().getChannel().send(Client.getInstance().getPackets().get(index).toBuffer(), Client.getInstance().getRouter());
 			} catch (IOException e1) {
@@ -132,7 +126,7 @@ public class ClientTimerTask extends java.util.TimerTask {
 				e1.printStackTrace();
 			}
 			try {
-				selector.select(3000);
+				selector.select(timeout);
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			}
@@ -153,7 +147,7 @@ public class ClientTimerTask extends java.util.TimerTask {
 			try {
 				response = Packet.fromBuffer(byteBuffer);
 			} catch (IOException e) {
-				e.printStackTrace();
+				return;
 			}
 	         
 	         if (response.getType() == 1 && response.getSequenceNumber() == Client.getInstance().getPackets().get(index).getSequenceNumber()) {
@@ -195,7 +189,7 @@ public class ClientTimerTask extends java.util.TimerTask {
 				}
 				
 				if (packet.getType() == 0) {
-					if (packet.getSequenceNumber() != Client.getInstance().getPackets().size() - 1)
+					if (HttpClient.isUnique(packet))
 					{
 						Client.getInstance().getPackets().add(packet);
 					}
@@ -236,7 +230,7 @@ public class ClientTimerTask extends java.util.TimerTask {
 				e1.printStackTrace();
 			}
 			try {
-				selector.select(3000);
+				selector.select(timeout);
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			}

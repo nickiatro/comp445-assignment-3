@@ -48,6 +48,32 @@ public class HttpClient {
 		return port;
 	}
 	
+	public static boolean isUnique(Packet packet) {
+		for (int i = 0; i < Client.getInstance().getPackets().size(); i++)
+		{
+			if (packet.getSequenceNumber() == Client.getInstance().getPackets().get(i).getSequenceNumber()) {
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
+	public static void packetsInOrder() {
+		ArrayList<Packet> temp = new ArrayList<Packet>();
+		for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {
+			temp.add(Client.getInstance().getPackets().get(i));
+		}
+		Client.getInstance().getPackets().clear();
+		for (int i = 0; i < temp.size(); i++) {
+			for (int j = 0; j < temp.size(); j++) {
+				if (i == temp.get(j).getSequenceNumber()) {
+					Client.getInstance().getPackets().add(temp.get(j));
+				}
+			}
+		}
+	}
+	
 	private static void getOperation() throws IOException {
 		String version = "HTTP/1.0";
 		String output = "";
@@ -171,6 +197,8 @@ public class HttpClient {
 		}
 		
 		String str = "";
+		
+		packetsInOrder();
 		
 		if (Client.getInstance().isVerbose()) {
 			for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {

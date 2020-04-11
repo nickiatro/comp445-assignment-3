@@ -99,12 +99,11 @@ public class ServerTimerTask extends java.util.TimerTask{
 				try {
 					packet = Packet.fromBuffer(buffer);
 				} catch (IOException e4) {
-					HttpFileServer.timers.get(index).cancel();
 					return;
 				}
 				
 				if (packet.getType() == 0) {
-					if (packet.getSequenceNumber() != HttpFileServer.packets.size() - 1)
+					if (HttpFileServer.isUnique(packet))
 					{
 						HttpFileServer.packets.add(packet);
 					}
@@ -120,9 +119,6 @@ public class ServerTimerTask extends java.util.TimerTask{
 			if (Client.getInstance().isReceiver()) {
 				SelectionKey key = null;
 				try {
-				if (HttpFileServer.packets.get(index).isAck()) {
-					HttpFileServer.timers.get(index).cancel();
-				}
 				try {
 					HttpFileServer.channel.send(HttpFileServer.packets.get(index).toBuffer(), HttpFileServer.router);
 				} catch (IOException e1) {
@@ -168,7 +164,6 @@ public class ServerTimerTask extends java.util.TimerTask{
 				try {
 					response = Packet.fromBuffer(byteBuffer);
 				} catch (IOException e) {
-					HttpFileServer.timers.get(index).cancel();
 					return;
 				}
 		         
@@ -200,7 +195,7 @@ public class ServerTimerTask extends java.util.TimerTask{
 					try {
 						packet = Packet.fromBuffer(buffer);
 					} catch (IOException e4) {
-						e4.printStackTrace();
+						return;
 					}
 					
 					if (packet.getType() == 4 && packet.getSequenceNumber() == 0L) {
