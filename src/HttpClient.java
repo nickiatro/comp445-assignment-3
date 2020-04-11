@@ -19,6 +19,7 @@ import java.io.UnsupportedEncodingException;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
@@ -28,14 +29,28 @@ import static java.nio.channels.SelectionKey.OP_READ;
 
 public class HttpClient {
 	
-	//TYPES: DATA = 0, ACK = 1, SYN = 2, SYN-ACK = 3
+	private static long timeout = 5000L;	
+	
+	//TYPES: DATA = 0, ACK = 1, SYN = 2, SYN-ACK = 3, FIN = 4, FIN-ACK = 5
+	
+	public static int clientPort() {
+		int port = 0;
+		Scanner scanner = null;
+		File file = new File("client-port.txt");
+		
+		try {
+			scanner = new Scanner(file);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		port = scanner.nextInt();
+		scanner.close();
+		return port;
+	}
 	
 	private static void getOperation() throws IOException {
-		System.out.println(Client.getInstance().isHandShaking());
 		String version = "HTTP/1.0";
 		String output = "";
-		
-		System.out.println("");
 		
 		Client.getInstance().getPw().write(("GET " + "/hello.txt " + version +"\r\n").getBytes());
 		Client.getInstance().getPw().write(("Host: " + Client.getInstance().getServer().getHostName() + "\r\n").getBytes());
@@ -63,7 +78,7 @@ public class HttpClient {
 			Client.getInstance().getPackets().add(syn);
 			Client.getInstance().getPackets().add(ack);
 			
-			Client.getInstance().getTimers().get(0).scheduleAtFixedRate(new ClientTimerTask(0), 0, 5000); //start with syn packet
+			Client.getInstance().getTimers().get(0).scheduleAtFixedRate(new ClientTimerTask(0), 0, timeout); //start with syn packet
 			
 			while (Client.getInstance().isHandShaking()) {
 				try {
@@ -73,8 +88,6 @@ public class HttpClient {
 				}
 			}
 		}
-		
-		System.out.println(Client.getInstance().isHandShaking());
 		
 		Client.getInstance().setHandShaking(false);
 		
@@ -113,12 +126,12 @@ public class HttpClient {
 				Client.getInstance().getTimers().add(new Timer());
 				
 				try {
-					Thread.sleep(2000);
+					Thread.sleep(timeout / 2);
 				} catch (InterruptedException e) {
 					e.getMessage();
 				}
 				
-				Client.getInstance().getTimers().get(i).scheduleAtFixedRate(new ClientTimerTask(i), 0, 5000);
+				Client.getInstance().getTimers().get(i).scheduleAtFixedRate(new ClientTimerTask(i), 0, timeout);
 			}
 			
 			while (Client.getInstance().isSender()) {
@@ -159,71 +172,51 @@ public class HttpClient {
 		
 		String str = "";
 		
-		for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {
-			try {
-				str += new String(Client.getInstance().getPackets().get(i).getPayload(), "UTF-8");
-			} catch (UnsupportedEncodingException e) {
-				e.printStackTrace();
+		if (Client.getInstance().isVerbose()) {
+			for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {
+				try {
+					str += new String(Client.getInstance().getPackets().get(i).getPayload(), "UTF-8");
+				} catch (UnsupportedEncodingException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		else if (!Client.getInstance().isVerbose()) {
+			for (int i = 1; i < Client.getInstance().getPackets().size(); i++) {
+				try {
+					str += new String(Client.getInstance().getPackets().get(i).getPayload(), "UTF-8");
+				} catch (UnsupportedEncodingException e) {
+					e.printStackTrace();
+				}
 			}
 		}
 		
+		System.out.println(str);
+		Client.getInstance().getPackets().clear();
+		Client.getInstance().getTimers().clear();
 		
-	//	socket.shutdownOutput();
-		/*
-		if (Client.getInstance().getFileOutput() == null) {
-			if (Client.getInstance().getVerbose() == true) {
-				String firstLine = reader.readLine(); 
-				output = (firstLine != null) ? firstLine : "" ;
-				System.out.println(output);
-				
-				while (output != null) {
-					output = reader.readLine();
-					System.out.println((output != null ? output : ""));
+		if (Client.getInstance().isConnectionTermination()){
+			
+			Client.getInstance().getTimers().add(new Timer());
+			Client.getInstance().getTimers().add(new Timer());
+			Packet fin = new Packet(4, 0L, Client.getInstance().getServer().getAddress(), Client.getInstance().getServer().getPort(), new byte[11]);
+			Packet ack = new Packet(1, 1L, Client.getInstance().getServer().getAddress(), Client.getInstance().getServer().getPort(), new byte[11]);
+			Client.getInstance().getPackets().add(fin);
+			Client.getInstance().getPackets().add(ack);
+			
+			Client.getInstance().getTimers().get(0).scheduleAtFixedRate(new ClientTimerTask(0), 0, timeout); //start with fin packet
+			
+			while (Client.getInstance().isConnectionTermination()) {
+				try {
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+					e.getMessage();
 				}
 			}
-			else if (Client.getInstance().getVerbose() == false) {
-				String firstLine = reader.readLine(); 
-				output = (firstLine != null) ? firstLine : "" ;
-				
-				while (!output.isEmpty()) {
-					output = reader.readLine();
-				}
-				
-				while (output != null) {
-					output = reader.readLine();
-					System.out.println((output != null ? output : ""));
-				}
-			}
+			
+			System.exit(0);
 		}
-		if (Client.getInstance().getFileOutput() != null) {
-			if (Client.getInstance().getVerbose() == true) {
-				String firstLine = reader.readLine(); 
-				output = (firstLine != null) ? firstLine : "" ;
-				Client.getInstance().getFileOutput().println(output);
-				
-				while (output != null) {
-					output = reader.readLine();
-					Client.getInstance().getFileOutput().println((output != null ? output : ""));
-				}
-			}
-			else if (Client.getInstance().getVerbose() == false) {
-				String firstLine = reader.readLine(); 
-				output = (firstLine != null) ? firstLine : "" ;
-				
-				while (!output.isEmpty()) {
-					output = reader.readLine();
-				}
-				
-				while (output != null) {
-					output = reader.readLine();
-					Client.getInstance().getFileOutput().println((output != null ? output : ""));
-				}
-			}
-		}
-		if (Client.getInstance().getFileOutput() != null) {
-			Client.getInstance().getFileOutput().close();
-		} */
-		//socket.shutdownInput();
+		
 	}
 	
 	private static void postOperation() throws IOException {
@@ -261,7 +254,7 @@ public class HttpClient {
 			e.getMessage();
 		}
 		
-		if (Client.getInstance().isHandShaking()){
+if (Client.getInstance().isHandShaking()){
 			
 			Client.getInstance().getTimers().add(new Timer());
 			Client.getInstance().getTimers().add(new Timer());
@@ -270,7 +263,7 @@ public class HttpClient {
 			Client.getInstance().getPackets().add(syn);
 			Client.getInstance().getPackets().add(ack);
 			
-			Client.getInstance().getTimers().get(0).scheduleAtFixedRate(new ClientTimerTask(0), 0, 5000); //start with syn packet
+			Client.getInstance().getTimers().get(0).scheduleAtFixedRate(new ClientTimerTask(0), 0, timeout); //start with syn packet
 			
 			while (Client.getInstance().isHandShaking()) {
 				try {
@@ -280,8 +273,6 @@ public class HttpClient {
 				}
 			}
 		}
-		
-		System.out.println(Client.getInstance().isHandShaking());
 		
 		Client.getInstance().setHandShaking(false);
 		
@@ -294,16 +285,11 @@ public class HttpClient {
 		int size = array.length;
 		int chunks = 0;
 		
-		if (size < 1013) {
-			for (int i = 10; i > 0; i--) {
-				if (size % i == 0) {
-					chunks = i;
-					break;
-				}
+		for (int i = 10; i > 0; i--) {
+			if (size % i == 0) {
+				chunks = i;
+				break;
 			}
-		}
-		else {
-			chunks = (int) Math.ceil((double)size / (double)1013);
 		}
 		
 		int chunk = size / chunks;
@@ -312,7 +298,7 @@ public class HttpClient {
 			Packet packet = new Packet(0, 0, Client.getInstance().getServer().getAddress(), Client.getInstance().getServer().getPort(), Arrays.copyOfRange(array, i, (i + chunk)));
 			Client.getInstance().getPackets().add(packet);
 		}
-		ArrayList<Packet> pk = Client.getInstance().getPackets();
+		
 		Client.getInstance().setWindowSize((int)(Client.getInstance().getPackets().size() / 2));
 		
 		for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {
@@ -325,12 +311,12 @@ public class HttpClient {
 				Client.getInstance().getTimers().add(new Timer());
 				
 				try {
-					Thread.sleep(2000);
+					Thread.sleep(timeout / 2);
 				} catch (InterruptedException e) {
 					e.getMessage();
 				}
 				
-				Client.getInstance().getTimers().get(i).scheduleAtFixedRate(new ClientTimerTask(i), 0, 5000);
+				Client.getInstance().getTimers().get(i).scheduleAtFixedRate(new ClientTimerTask(i), 0, timeout);
 			}
 			
 			while (Client.getInstance().isSender()) {
@@ -371,69 +357,50 @@ public class HttpClient {
 		
 		String str = "";
 		
-		for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {
-			try {
-				str += new String(Client.getInstance().getPackets().get(i).getPayload(), "UTF-8");
-			} catch (UnsupportedEncodingException e) {
-				e.printStackTrace();
-			}
-		}
-		        
-		//socket.shutdownOutput();
-		/*if (Client.getInstance().getFileOutput() == null) {
-			if (Client.getInstance().getVerbose() == true) {
-				String firstLine = reader.readLine(); 
-				output = (firstLine != null) ? firstLine : "" ;
-				System.out.println(output);
-				
-				while (output != null) {
-					output = reader.readLine();
-					System.out.println((output != null ? output : ""));
-				}
-			}
-			else if (Client.getInstance().getVerbose() == false) {
-				String firstLine = reader.readLine(); 
-				output = (firstLine != null) ? firstLine : "" ;
-				
-				while (!output.isEmpty()) {
-					output = reader.readLine();
-				}
-				
-				while (output != null) {
-					output = reader.readLine();
-					System.out.println((output != null ? output : ""));
+		if (Client.getInstance().isVerbose()) {
+			for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {
+				try {
+					str += new String(Client.getInstance().getPackets().get(i).getPayload(), "UTF-8");
+				} catch (UnsupportedEncodingException e) {
+					e.printStackTrace();
 				}
 			}
 		}
-		if (Client.getInstance().getFileOutput() != null) {
-			if (Client.getInstance().getVerbose() == true) {
-				String firstLine = reader.readLine(); 
-				output = (firstLine != null) ? firstLine : "" ;
-				Client.getInstance().getFileOutput().println(output);
-				
-				while (output != null) {
-					output = reader.readLine();
-					Client.getInstance().getFileOutput().println((output != null ? output : ""));
-				}
-			}
-			else if (Client.getInstance().getVerbose() == false) {
-				String firstLine = reader.readLine(); 
-				output = (firstLine != null) ? firstLine : "" ;
-				
-				while (!output.isEmpty()) {
-					output = reader.readLine();
-				}
-				
-				while (output != null) {
-					output = reader.readLine();
-					Client.getInstance().getFileOutput().println((output != null ? output : ""));
+		else if (!Client.getInstance().isVerbose()) {
+			for (int i = 1; i < Client.getInstance().getPackets().size(); i++) {
+				try {
+					str += new String(Client.getInstance().getPackets().get(i).getPayload(), "UTF-8");
+				} catch (UnsupportedEncodingException e) {
+					e.printStackTrace();
 				}
 			}
 		}
-		if (Client.getInstance().getFileOutput() != null) {
-			Client.getInstance().getFileOutput().close();
+		
+		System.out.println(str);
+		Client.getInstance().getPackets().clear();
+		Client.getInstance().getTimers().clear();
+		
+		if (Client.getInstance().isConnectionTermination()){
+			
+			Client.getInstance().getTimers().add(new Timer());
+			Client.getInstance().getTimers().add(new Timer());
+			Packet fin = new Packet(4, 0L, Client.getInstance().getServer().getAddress(), Client.getInstance().getServer().getPort(), new byte[11]);
+			Packet ack = new Packet(1, 1L, Client.getInstance().getServer().getAddress(), Client.getInstance().getServer().getPort(), new byte[11]);
+			Client.getInstance().getPackets().add(fin);
+			Client.getInstance().getPackets().add(ack);
+			
+			Client.getInstance().getTimers().get(0).scheduleAtFixedRate(new ClientTimerTask(0), 0, timeout); //start with fin packet
+			
+			while (Client.getInstance().isConnectionTermination()) {
+				try {
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+					e.getMessage();
+				}
+			}
+			System.exit(0);
 		}
-		//socket.shutdownInput();*/
+		
 	}
 	
 	public static void main(String[] args) {

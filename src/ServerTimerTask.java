@@ -1,15 +1,23 @@
 import static java.nio.channels.SelectionKey.OP_READ;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
+import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Set;
 
 public class ServerTimerTask extends java.util.TimerTask{
-
+	private static long timeout = 5000L;
+	private static PrintWriter pw = null;
 	private int index;
 	
 	public ServerTimerTask() {
@@ -21,48 +29,61 @@ public class ServerTimerTask extends java.util.TimerTask{
 		this.index = index;
 	}
 	
-	//TYPES: DATA = 0, ACK = 1, SYN = 2, SYN-ACK = 3
+	//TYPES: DATA = 0, ACK = 1, SYN = 2, SYN-ACK = 3, FIN = 4, FIN-ACK = 5
 
 	@Override
 	public void run() {
 			ByteBuffer buffer = ByteBuffer.allocate(Packet.MAX_LEN).order(ByteOrder.BIG_ENDIAN);
-
-			while (Client.getInstance().isHandShaking() && !Client.getInstance().isReceiver()) {
-				buffer.clear();
+			File file = new File("client-port.txt");
+			if (pw == null) {
 				try {
-					HttpFileServer.channel.receive(buffer);
-				} catch (IOException e4) {
-					e4.printStackTrace();
+					pw = new PrintWriter(file);
+				} catch (FileNotFoundException e3) {
+					// TODO Auto-generated catch block
+					e3.printStackTrace();
 				}
-				
-				buffer.flip();
-				Packet packet = null;
-				
-				try {
-					packet = Packet.fromBuffer(buffer);
-				} catch (IOException e4) {
-					e4.printStackTrace();
-				}
-				
-				if (packet.getType() == 2 && packet.getSequenceNumber() == 0L) {
-					Packet resp = packet;
-					resp.setType(3);
+			}
+				while (Client.getInstance().isHandShaking() && !Client.getInstance().isReceiver()) {
+					buffer.clear();
 					try {
-						HttpFileServer.channel.send(resp.toBuffer(), HttpFileServer.router);
-					} catch (IOException e) {
-						e.printStackTrace();
+						HttpFileServer.channel.receive(buffer);
+					} catch (IOException e4) {
+						e4.printStackTrace();
 					}
-				}
-				
-				else  if (packet.getType() == 1 && packet.getSequenceNumber() == 1L) {
-					Packet resp = packet;
-					resp.setType(1);
+					
+					buffer.flip();
+					Packet packet = null;
+					
 					try {
-						HttpFileServer.channel.send(resp.toBuffer(), HttpFileServer.router);
-					} catch (IOException e) {
-						e.printStackTrace();
+						packet = Packet.fromBuffer(buffer);
+					} catch (IOException e4) {
+						HttpFileServer.timers.get(index).cancel();
+						return;
 					}
-				}
+					
+					if (packet.getType() == 2 && packet.getSequenceNumber() == 0L) {
+						Packet resp = packet;
+						resp.setType(3);
+						try {
+							pw.write(new Integer(resp.getPeerPort()).toString());
+							HttpFileServer.channel.send(resp.toBuffer(), HttpFileServer.router);
+							pw.close();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+					
+					else if (packet.getType() == 1 && packet.getSequenceNumber() == 1L) {
+						Packet resp = packet;
+						resp.setType(1);
+						try {
+							pw.write(new Integer(resp.getPeerPort()).toString());
+							HttpFileServer.channel.send(resp.toBuffer(), HttpFileServer.router);
+							pw.close();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
 			}
 			while (Client.getInstance().isSender() && !Client.getInstance().isReceiver()) {
 				buffer.clear();
@@ -78,7 +99,8 @@ public class ServerTimerTask extends java.util.TimerTask{
 				try {
 					packet = Packet.fromBuffer(buffer);
 				} catch (IOException e4) {
-					e4.printStackTrace();
+					HttpFileServer.timers.get(index).cancel();
+					return;
 				}
 				
 				if (packet.getType() == 0) {
@@ -96,6 +118,11 @@ public class ServerTimerTask extends java.util.TimerTask{
 				}
 			}
 			if (Client.getInstance().isReceiver()) {
+				SelectionKey key = null;
+				try {
+				if (HttpFileServer.packets.get(index).isAck()) {
+					HttpFileServer.timers.get(index).cancel();
+				}
 				try {
 					HttpFileServer.channel.send(HttpFileServer.packets.get(index).toBuffer(), HttpFileServer.router);
 				} catch (IOException e1) {
@@ -114,12 +141,12 @@ public class ServerTimerTask extends java.util.TimerTask{
 					e2.printStackTrace();
 				}
 				try {
-					HttpFileServer.channel.register(selector, OP_READ);
+					key = HttpFileServer.channel.register(selector, OP_READ);
 				} catch (ClosedChannelException e1) {
 					e1.printStackTrace();
 				}
 				try {
-					selector.select(3000);
+					selector.select(timeout);
 				} catch (IOException e1) {
 					e1.printStackTrace();
 				}
@@ -127,7 +154,6 @@ public class ServerTimerTask extends java.util.TimerTask{
 				Set<SelectionKey> keys = selector.selectedKeys();
 				
 		        if(keys.isEmpty()){
-		            System.err.println("No response after timeout");
 		            return;
 		        }
 				
@@ -142,13 +168,64 @@ public class ServerTimerTask extends java.util.TimerTask{
 				try {
 					response = Packet.fromBuffer(byteBuffer);
 				} catch (IOException e) {
-					e.printStackTrace();
+					HttpFileServer.timers.get(index).cancel();
+					return;
 				}
 		         
 		         if (response.getType() == 1 && response.getSequenceNumber() == HttpFileServer.packets.get(index).getSequenceNumber()) {
 		        	 HttpFileServer.packets.get(index).setAck(true);
 		        	 HttpFileServer.timers.get(index).cancel();
 		         }
+		         try {
+					selector.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				}finally {
+					key.cancel();
+				}
+			}
+			while (Client.getInstance().isConnectionTermination()) {
+					buffer.clear();
+					try {
+						HttpFileServer.channel.configureBlocking(true);
+						HttpFileServer.channel.receive(buffer);
+					} catch (IOException e4) {
+						e4.printStackTrace();
+					}
+					
+					buffer.flip();
+					Packet packet = null;
+					
+					try {
+						packet = Packet.fromBuffer(buffer);
+					} catch (IOException e4) {
+						e4.printStackTrace();
+					}
+					
+					if (packet.getType() == 4 && packet.getSequenceNumber() == 0L) {
+						Packet resp = packet;
+						resp.setType(5);
+						try {
+							pw.write(new Integer(resp.getPeerPort()).toString());
+							HttpFileServer.channel.send(resp.toBuffer(), HttpFileServer.router);
+							pw.close();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+					
+					else if (packet.getType() == 1 && packet.getSequenceNumber() == 1L) {
+						Packet resp = packet;
+						resp.setType(1);
+						try {
+							pw.write(new Integer(resp.getPeerPort()).toString());
+							HttpFileServer.channel.send(resp.toBuffer(), HttpFileServer.router);
+							pw.close();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+				}
 			}
 		}
-	}

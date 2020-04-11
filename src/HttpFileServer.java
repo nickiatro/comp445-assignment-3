@@ -19,6 +19,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.DatagramChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.StringTokenizer;
@@ -33,6 +34,7 @@ public class HttpFileServer {
 	public static ArrayList<Packet> packets = new ArrayList<Packet>();
 	public static ArrayList<Timer> timers = new ArrayList<Timer>();
 	public static Timer timer = new Timer();
+	private static long timeout = 5000L;
 	
 	public static DatagramChannel channel = null;
 	public static ByteArrayOutputStream pw = null;
@@ -44,6 +46,21 @@ public class HttpFileServer {
 	public static InetSocketAddress router = null;
 	
 	//TYPES: DATA = 0, ACK = 1, SYN = 2, SYN-ACK = 3
+	
+	public static int clientPort() {
+		int port = 0;
+		Scanner scanner = null;
+		File file = new File("client-port.txt");
+		
+		try {
+			scanner = new Scanner(file);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		port = scanner.nextInt();
+		scanner.close();
+		return port;
+	}
 	
 	public static void main(String[] args) {
 		
@@ -145,7 +162,8 @@ public class HttpFileServer {
 			
 			buffer.clear();
 			
-			timer.schedule(new ServerTimerTask(), 0);
+			timers.add(new Timer());
+			timers.get(0).schedule(new ServerTimerTask(), 0);
 			
 			while (Client.getInstance().isHandShaking() == true) {
 				
@@ -160,6 +178,8 @@ public class HttpFileServer {
 				
 			}
 			
+			timers.get(0).cancel();
+			timers.clear();
 			
 			buffer.flip();
 			pw = new ByteArrayOutputStream();
@@ -252,6 +272,20 @@ public class HttpFileServer {
 					}
 					
 				}
+				
+				while (Client.getInstance().isReceiver() == false) {
+					try {
+						Thread.sleep(1);
+					} catch (InterruptedException e) {
+						e.getMessage();
+					}
+					
+				}
+				
+				Packet p = packets.get(0);
+				packets.clear();
+				packets.add(p);
+				
 				try {
 				if (ok == true) {
 					pw.write(("HTTP/1.0 200 OK" + "\n").getBytes());
@@ -260,10 +294,12 @@ public class HttpFileServer {
 					pw.write(("\n").getBytes());
 					
 					packets.get(0).setPayload(pw.toByteArray());
-					packets.get(0).setSequenceNumber(19L);
+					packets.get(0).setSequenceNumber(0L);
+					packets.get(0).setType(0);
 					//channel.send(response.toBuffer(), router);
 					timers.add(new Timer());
-					timers.get(0).scheduleAtFixedRate(new ServerTimerTask(0), 0, 5000);
+					timers.get(0).scheduleAtFixedRate(new ServerTimerTask(0), 0, timeout);
+					pw.reset();
 				}
 				else if (notFound == true) {
 					pw.write(("HTTP/1.0 404 NOT FOUND" + "\n").getBytes());
@@ -273,10 +309,12 @@ public class HttpFileServer {
 					pw.write(("Error 404: Not Found" + "\n").getBytes());
 					
 					packets.get(0).setPayload(pw.toByteArray());
-					packets.get(0).setSequenceNumber(19L);
+					packets.get(0).setSequenceNumber(0L);
+					packets.get(0).setType(0);
 					//channel.send(response.toBuffer(), router);
 					timers.add(new Timer());
-					timers.get(0).scheduleAtFixedRate(new ServerTimerTask(0), 0, 5000);
+					timers.get(0).scheduleAtFixedRate(new ServerTimerTask(0), 0, timeout);
+					pw.reset();
 				}
 				else if (forbidden == true) {
 					pw.write(("HTTP/1.0 403 FORBIDDEN" + "\n").getBytes());
@@ -286,10 +324,12 @@ public class HttpFileServer {
 					pw.write(("Error 403: Forbidden").getBytes());
 					
 					packets.get(0).setPayload(pw.toByteArray());
-					packets.get(0).setSequenceNumber(19L);
+					packets.get(0).setSequenceNumber(0L);
+					packets.get(0).setType(0);
 					//channel.send(response.toBuffer(), router);
 					timers.add(new Timer());
-					timers.get(0).scheduleAtFixedRate(new ServerTimerTask(0), 0, 5000);
+					timers.get(0).scheduleAtFixedRate(new ServerTimerTask(0), 0, timeout);
+					pw.reset();
 				}
 				
 				if (method.equals("GET") && ok == true && item.equals("/")) {
@@ -307,22 +347,100 @@ public class HttpFileServer {
 					pw.write(("</ul>" + "\n").getBytes());
 					
 					packets.get(1).setPayload(pw.toByteArray());
-					packets.get(1).setSequenceNumber(20L);
+					packets.get(1).setSequenceNumber(1L);
 					//channel.send(response.toBuffer(), router);
 					timers.add(new Timer());
-					timers.get(1).scheduleAtFixedRate(new ServerTimerTask(1), 0, 5000);
+					timers.get(1).scheduleAtFixedRate(new ServerTimerTask(1), timeout / 2, timeout);
 				}
 				else if (method.equals("GET") && !item.equals("/") && !item.isEmpty()) {
 					for (String fileLine : fileContents) {
 						pw.write((fileLine + "\n").getBytes());
 					}
-					packets.get(1).setPayload(pw.toByteArray());
-					packets.get(1).setSequenceNumber(20L);
-					//channel.send(response.toBuffer(), router);
-					timer.scheduleAtFixedRate(new ServerTimerTask(1), 0, 5000);
-					//Packet response = packet;
-					//response.setPayload(pw.toByteArray());
-					//channel.send(response.toBuffer(), router);
+					
+					byte[] array = pw.toByteArray();
+					int size = array.length;
+					int chunks = 0;
+					
+					if (size <= 1013) {
+						for (int i = 10; i > 0; i--) {
+							if (size % i == 0) {
+								chunks = i;
+								break;
+							}
+						}
+					}
+					else {
+						chunks = (int) Math.ceil((double)size / (double)1013);
+					}
+					
+					int chunk = size / chunks;
+					if (size > 1013) {
+						for (int i = 0; i <= array.length - chunk; i += chunk) {
+							Packet packet = new Packet(0, 0, server.getAddress(), clientPort(), Arrays.copyOfRange(array, i, (i + chunk)));
+							HttpFileServer.packets.add(packet);
+						}
+						
+						//Client.getInstance().setWindowSize((int)(Client.getInstance().getPackets().size() / 2));
+						
+						for (int i = 1; i < packets.size(); i++) {
+							packets.get(i).setSequenceNumber(Long.parseLong(new Integer(i).toString()));
+						}
+						
+						for (int i = 1; i < packets.size(); i++) {
+							timers.add(new Timer());
+							
+							try {
+								Thread.sleep(timeout/2);
+							} catch (InterruptedException e) {
+								e.getMessage();
+							}
+							
+							timers.get(i).scheduleAtFixedRate(new ServerTimerTask(i), 0, timeout);
+						}
+					}
+					
+					if (size <= 1013) {
+						packets.get(1).setPayload(pw.toByteArray());
+						packets.get(1).setSequenceNumber(1L);
+						//channel.send(response.toBuffer(), router);
+						timer.scheduleAtFixedRate(new ServerTimerTask(1), 0, timeout);
+						//Packet response = packet;
+						//response.setPayload(pw.toByteArray());
+						//channel.send(response.toBuffer(), router);
+					}
+					
+					while (Client.getInstance().isReceiver() == true) {
+						try {
+							Thread.sleep(1);
+						} catch (InterruptedException e) {
+							e.getMessage();
+						}
+						
+						for (int i = 0; i < packets.size(); i++) {
+							if (!packets.get(i).isAck())
+								break;
+							else if (i == packets.size() - 1 && packets.get(i).isAck()) {
+								Client.getInstance().setReceiver(false);
+								Client.getInstance().setConnectionTermination(true);
+							}
+						}
+						
+					}
+					
+					packets.clear();
+					timers.clear();
+					timers.add(new Timer());
+					timers.get(0).schedule(new ServerTimerTask(), 0);
+					while (Client.getInstance().isConnectionTermination() == true) {
+						
+					}
+					
+					 Client.getInstance().setReceiver(false);
+					 Client.getInstance().setSender(false);
+					 Client.getInstance().setHandShaking(true);
+					 Client.getInstance().setConnectionTermination(false);
+					 
+					 continue;
 				}
 				
 				else if (method.equals("POST")) {

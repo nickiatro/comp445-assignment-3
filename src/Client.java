@@ -33,6 +33,7 @@ import java.util.Timer;
 	  private volatile boolean isSender;
 	  private volatile boolean isHandShaking;
 	  private volatile boolean isReceiver;
+	  private volatile boolean connectionTermination;
 	  private volatile int index; 
 	
 	  private volatile InetSocketAddress server;
@@ -59,6 +60,7 @@ import java.util.Timer;
 		 this.setReceiver(false);
 		 this.setSender(false);
 		 this.setHandShaking(true);
+		 this.setConnectionTermination(false);
 		 this.index = 0; 
 		
 		 this.server = null;
@@ -175,9 +177,11 @@ import java.util.Timer;
 				
 				return isSender;
 			} else {
-				Scanner scanner = new Scanner(file);
-				this.isSender = scanner.nextBoolean();
-				scanner.close();
+				synchronized(this) {
+					Scanner scanner = new Scanner(file);
+					this.isSender = scanner.nextBoolean();
+					scanner.close();
+				}
 			}
 		}
 		catch(IOException e) {
@@ -237,6 +241,42 @@ import java.util.Timer;
 		}
 		
 		this.isHandShaking = isHandShaking;
+	}
+
+	public synchronized boolean isConnectionTermination() {
+		try {
+			File file = new File("connectionTermination.txt");
+			if (file.createNewFile()) {
+				return connectionTermination;
+			}
+			
+			Scanner scanner = new Scanner(file);
+			if (file.length() > 0)
+				this.connectionTermination = scanner.nextBoolean();
+			scanner.close();
+		}
+		catch(IOException e) {
+		//	e.printStackTrace();
+		}
+		
+		return connectionTermination;
+	}
+
+	public synchronized void setConnectionTermination(boolean connectionTermination) {
+		try {
+			File file = new File("connectionTermination.txt");
+			file.delete();
+			file.createNewFile();
+			
+			PrintWriter pw = new PrintWriter(file);
+			pw.write(new Boolean(connectionTermination).toString());
+			pw.close();
+		}
+		catch(IOException e) {
+		//	e.printStackTrace();
+		}
+		
+		this.connectionTermination = connectionTermination;
 	}
 
 	public synchronized int getIndex() {
