@@ -46,7 +46,7 @@ public class ServerTimerTask extends java.util.TimerTask{
 				while (Client.getInstance().isHandShaking() && !Client.getInstance().isReceiver()) {
 					buffer.clear();
 					try {
-						HttpFileServer.channel.receive(buffer);
+						HttpFileServer.getChannel().receive(buffer);
 					} catch (IOException e4) {
 						e4.printStackTrace();
 					}
@@ -57,7 +57,7 @@ public class ServerTimerTask extends java.util.TimerTask{
 					try {
 						packet = Packet.fromBuffer(buffer);
 					} catch (IOException e4) {
-						HttpFileServer.timers.get(index).cancel();
+						HttpFileServer.getTimers().get(index).cancel();
 						return;
 					}
 					
@@ -66,7 +66,7 @@ public class ServerTimerTask extends java.util.TimerTask{
 						resp.setType(3);
 						try {
 							pw.write(new Integer(resp.getPeerPort()).toString());
-							HttpFileServer.channel.send(resp.toBuffer(), HttpFileServer.router);
+							HttpFileServer.getChannel().send(resp.toBuffer(), HttpFileServer.getRouter());
 							pw.close();
 						} catch (IOException e) {
 							e.printStackTrace();
@@ -78,7 +78,7 @@ public class ServerTimerTask extends java.util.TimerTask{
 						resp.setType(1);
 						try {
 							pw.write(new Integer(resp.getPeerPort()).toString());
-							HttpFileServer.channel.send(resp.toBuffer(), HttpFileServer.router);
+							HttpFileServer.getChannel().send(resp.toBuffer(), HttpFileServer.getRouter());
 							pw.close();
 						} catch (IOException e) {
 							e.printStackTrace();
@@ -88,7 +88,7 @@ public class ServerTimerTask extends java.util.TimerTask{
 			while (Client.getInstance().isSender() && !Client.getInstance().isReceiver()) {
 				buffer.clear();
 				try {
-					HttpFileServer.channel.receive(buffer);
+					HttpFileServer.getChannel().receive(buffer);
 				} catch (IOException e4) {
 					e4.printStackTrace();
 				}
@@ -105,12 +105,12 @@ public class ServerTimerTask extends java.util.TimerTask{
 				if (packet.getType() == 0) {
 					if (HttpFileServer.isUnique(packet))
 					{
-						HttpFileServer.packets.add(packet);
+						HttpFileServer.getPackets().add(packet);
 					}
 					Packet resp = packet;
 					resp.setType(1);
 					try {
-						HttpFileServer.channel.send(resp.toBuffer(), HttpFileServer.router);
+						HttpFileServer.getChannel().send(resp.toBuffer(), HttpFileServer.getRouter());
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
@@ -120,13 +120,13 @@ public class ServerTimerTask extends java.util.TimerTask{
 				SelectionKey key = null;
 				try {
 				try {
-					HttpFileServer.channel.send(HttpFileServer.packets.get(index).toBuffer(), HttpFileServer.router);
+					HttpFileServer.getChannel().send(HttpFileServer.getPackets().get(index).toBuffer(), HttpFileServer.getRouter());
 				} catch (IOException e1) {
 					e1.printStackTrace();
 				}
 				
 				try {
-					HttpFileServer.channel.configureBlocking(false);
+					HttpFileServer.getChannel().configureBlocking(false);
 				} catch (IOException e1) {
 					e1.printStackTrace();
 				}
@@ -137,7 +137,7 @@ public class ServerTimerTask extends java.util.TimerTask{
 					e2.printStackTrace();
 				}
 				try {
-					key = HttpFileServer.channel.register(selector, OP_READ);
+					key = HttpFileServer.getChannel().register(selector, OP_READ);
 				} catch (ClosedChannelException e1) {
 					e1.printStackTrace();
 				}
@@ -155,7 +155,7 @@ public class ServerTimerTask extends java.util.TimerTask{
 				
 				 ByteBuffer byteBuffer = ByteBuffer.allocate(Packet.MAX_LEN);
 				 try {
-					HttpFileServer.channel.receive(byteBuffer);
+					HttpFileServer.getChannel().receive(byteBuffer);
 				} catch (IOException e1) {
 					e1.printStackTrace();
 				}
@@ -167,9 +167,9 @@ public class ServerTimerTask extends java.util.TimerTask{
 					return;
 				}
 		         
-		         if (response.getType() == 1 && response.getSequenceNumber() == HttpFileServer.packets.get(index).getSequenceNumber()) {
-		        	 HttpFileServer.packets.get(index).setAck(true);
-		        	 HttpFileServer.timers.get(index).cancel();
+		         if (response.getType() == 1 && response.getSequenceNumber() == HttpFileServer.getPackets().get(index).getSequenceNumber()) {
+		        	 HttpFileServer.getPackets().get(index).setAck(true);
+		        	 HttpFileServer.getTimers().get(index).cancel();
 		         }
 		         try {
 					selector.close();
@@ -183,8 +183,8 @@ public class ServerTimerTask extends java.util.TimerTask{
 			while (Client.getInstance().isConnectionTermination()) {
 					buffer.clear();
 					try {
-						HttpFileServer.channel.configureBlocking(true);
-						HttpFileServer.channel.receive(buffer);
+						HttpFileServer.getChannel().configureBlocking(true);
+						HttpFileServer.getChannel().receive(buffer);
 					} catch (IOException e4) {
 						e4.printStackTrace();
 					}
@@ -203,7 +203,7 @@ public class ServerTimerTask extends java.util.TimerTask{
 						resp.setType(5);
 						try {
 							pw.write(new Integer(resp.getPeerPort()).toString());
-							HttpFileServer.channel.send(resp.toBuffer(), HttpFileServer.router);
+							HttpFileServer.getChannel().send(resp.toBuffer(), HttpFileServer.getRouter());
 							pw.close();
 						} catch (IOException e) {
 							e.printStackTrace();
@@ -215,7 +215,7 @@ public class ServerTimerTask extends java.util.TimerTask{
 						resp.setType(1);
 						try {
 							pw.write(new Integer(resp.getPeerPort()).toString());
-							HttpFileServer.channel.send(resp.toBuffer(), HttpFileServer.router);
+							HttpFileServer.getChannel().send(resp.toBuffer(), HttpFileServer.getRouter());
 							pw.close();
 						} catch (IOException e) {
 							e.printStackTrace();

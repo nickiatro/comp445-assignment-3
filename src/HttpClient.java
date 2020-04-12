@@ -29,6 +29,7 @@ import static java.nio.channels.SelectionKey.OP_READ;
 
 public class HttpClient {
 	
+	private static String resId = "";
 	private static long timeout = 5000L;	
 	
 	//TYPES: DATA = 0, ACK = 1, SYN = 2, SYN-ACK = 3, FIN = 4, FIN-ACK = 5
@@ -78,7 +79,7 @@ public class HttpClient {
 		String version = "HTTP/1.0";
 		String output = "";
 		
-		Client.getInstance().getPw().write(("GET " + "/hello.txt " + version +"\r\n").getBytes());
+		Client.getInstance().getPw().write(("GET " + resId + " " + version +"\r\n").getBytes());
 		Client.getInstance().getPw().write(("Host: " + Client.getInstance().getServer().getHostName() + "\r\n").getBytes());
 		
 		if (!Client.getInstance().getHeaders().isEmpty()) {
@@ -166,7 +167,6 @@ public class HttpClient {
 				} catch (InterruptedException e) {
 					e.getMessage();
 				}
-				
 				for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {
 					if (!Client.getInstance().getPackets().get(i).isAck())
 						break;
@@ -248,7 +248,6 @@ public class HttpClient {
 	}
 	
 	private static void postOperation() throws IOException {
-		//String resId = Client.getInstance().getServer().getPath() + ((Client.getInstance().getServer().getQuery() != null) ? Client.getInstance().getServer().getQuery() : "") ;
 		String version = "HTTP/1.0";
 		String output = "";
 		int length = 0;
@@ -259,7 +258,7 @@ public class HttpClient {
 			}
 		}
 		
-		Client.getInstance().getPw().write(("POST " + " /helloWorld3.txt " + version +"\r\n").getBytes());
+		Client.getInstance().getPw().write(("POST " + resId +" " + version +"\r\n").getBytes());
 		Client.getInstance().getPw().write(("Host: " + Client.getInstance().getServer().getHostName()  + " \r\n").getBytes());
 		Client.getInstance().getPw().write(("Content-Length: " + length + "\r\n").getBytes());
 		if (!Client.getInstance().getHeaders().isEmpty()) {
@@ -353,7 +352,6 @@ if (Client.getInstance().isHandShaking()){
 				} catch (InterruptedException e) {
 					e.getMessage();
 				}
-				
 				for (int i = 0; i < Client.getInstance().getPackets().size(); i++) {
 					if (!Client.getInstance().getPackets().get(i).isAck())
 						break;
@@ -478,7 +476,8 @@ if (Client.getInstance().isHandShaking()){
 		}
 		
 		try {
-			Client.getInstance().setServer(new InetSocketAddress(InetAddress.getByName(args[args.length - 1]), port));
+			Client.getInstance().setServer(new InetSocketAddress(InetAddress.getByName(args[args.length - 1].substring(0, args[args.length - 1].indexOf('/'))), port));
+			resId = args[args.length - 1].substring(args[args.length - 1].indexOf('/'));
 		}
 		catch (UnknownHostException e) {
 			System.out.println("Bad InetAddress... program will terminate");
@@ -486,23 +485,17 @@ if (Client.getInstance().isHandShaking()){
 		}
 		
 		try {
-			Client.getInstance().setRouter(new InetSocketAddress(InetAddress.getByName(args[args.length - 1]), routerPort));
+			Client.getInstance().setRouter(new InetSocketAddress(InetAddress.getByName(args[args.length - 1].substring(0, args[args.length - 1].indexOf('/'))), routerPort));
 		}
 		catch (UnknownHostException e) {
 			System.out.println("Bad InetAddress... program will terminate");
 			System.exit(1);
 		}
 		
-		
-		//hostName = Client.getInstance().getServer().getHostName();
 		
 		try {
 			Client.getInstance().setChannel(DatagramChannel.open());
 		}
-		//catch(UnknownHostException e1) {
-			//System.err.println("Unknown host... Program will terminate");
-			//System.exit(1);
-		//}
 		catch(IOException e2) {
 			System.err.println("I/O error... Program will terminate");
 			System.exit(1);
@@ -510,14 +503,7 @@ if (Client.getInstance().isHandShaking()){
 		
 
 		Client.getInstance().setPw(new ByteArrayOutputStream());
-		/*
-		try {
-			reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-		}
-		catch (IOException e) {
-			System.err.println("I/O error... Program will terminate");
-			System.exit(1);
-		}*/
+
 		
 		if (args[1].equalsIgnoreCase("get")) {
 			try {

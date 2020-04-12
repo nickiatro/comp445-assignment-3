@@ -29,24 +29,64 @@ import java.util.Timer;
 public class HttpFileServer {
 	
 	
-	public static long sequenceNumber = 0L;
-	public static long ackNumber = 0L;
-	public static ArrayList<Packet> packets = new ArrayList<Packet>();
-	public static ArrayList<Timer> timers = new ArrayList<Timer>();
-	public static Timer timer = new Timer();
+	private static long sequenceNumber = 0L;
+	private static long ackNumber = 0L;
+	private static ArrayList<Packet> packets = new ArrayList<Packet>();
+	private static ArrayList<Timer> timers = new ArrayList<Timer>();
+	private static Timer timer = new Timer();
 	private static long timeout = 5000L;
 	
-	public static DatagramChannel channel = null;
-	public static ByteArrayOutputStream pw = null;
-	public static PrintWriter pwPost = null;
-	public static ByteArrayInputStream reader = null;
-	public static ByteBuffer buffer = null;
-	public static Scanner fileScanner = null;
-	public static InetSocketAddress server = null;
-	public static InetSocketAddress router = null;
+	private static DatagramChannel channel = null;
+	private static ByteArrayOutputStream pw = null;
+	private static PrintWriter pwPost = null;
+	private static ByteArrayInputStream reader = null;
+	private static ByteBuffer buffer = null;
+	private static Scanner fileScanner = null;
+	private static InetSocketAddress server = null;
+	private static InetSocketAddress router = null;
 	
 	//TYPES: DATA = 0, ACK = 1, SYN = 2, SYN-ACK = 3
 	
+	public static synchronized ArrayList<Timer> getTimers() {
+		return timers;
+	}
+
+	public static synchronized void setTimers(ArrayList<Timer> timers) {
+		HttpFileServer.timers = timers;
+	}
+
+	public static synchronized ArrayList<Packet> getPackets() {
+		return packets;
+	}
+
+	public static synchronized void setPackets(ArrayList<Packet> packets) {
+		HttpFileServer.packets = packets;
+	}
+
+	public static synchronized DatagramChannel getChannel() {
+		return channel;
+	}
+
+	public static synchronized void setChannel(DatagramChannel channel) {
+		HttpFileServer.channel = channel;
+	}
+
+	public static synchronized InetSocketAddress getServer() {
+		return server;
+	}
+
+	public static synchronized void setServer(InetSocketAddress server) {
+		HttpFileServer.server = server;
+	}
+
+	public static synchronized InetSocketAddress getRouter() {
+		return router;
+	}
+
+	public static synchronized void setRouter(InetSocketAddress router) {
+		HttpFileServer.router = router;
+	}
+
 	public static int clientPort() {
 		int port = 0;
 		Scanner scanner = null;
@@ -60,6 +100,21 @@ public class HttpFileServer {
 		port = scanner.nextInt();
 		scanner.close();
 		return port;
+	}
+	
+	public static void packetsInOrder() {
+		ArrayList<Packet> temp = new ArrayList<Packet>();
+		for (int i = 0; i < packets.size(); i++) {
+			temp.add(packets.get(i));
+		}
+		packets.clear();
+		for (int i = 0; i < temp.size(); i++) {
+			for (int j = 0; j < temp.size(); j++) {
+				if (i == temp.get(j).getSequenceNumber()) {
+					packets.add(temp.get(j));
+				}
+			}
+		}
 	}
 	
 	public static boolean isUnique(Packet packet) {
@@ -194,7 +249,7 @@ public class HttpFileServer {
 			
 			buffer.flip();
 			pw = new ByteArrayOutputStream();
-			
+			packetsInOrder();
 			String str = "";
 			
 			for (int i = 0; i < packets.size(); i++) {
@@ -370,22 +425,23 @@ public class HttpFileServer {
 					
 					byte[] array = pw.toByteArray();
 					int size = array.length;
-					int chunks = 0;
 					
-					if (size <= 1013) {
-						for (int i = 10; i > 0; i--) {
-							if (size % i == 0) {
-								chunks = i;
-								break;
+					if (size > 1013) {
+						int chunks = 0;
+						
+						if (size <= 1013) {
+							for (int i = 10; i > 0; i--) {
+								if (size % i == 0) {
+									chunks = i;
+									break;
+								}
 							}
 						}
-					}
-					else {
-						chunks = (int) Math.ceil((double)size / (double)1013);
-					}
-					
+						else {
+							chunks = (int) Math.ceil((double)size / (double)1013);
+						}
+						
 					int chunk = size / chunks;
-					if (size > 1013) {
 						for (int i = 0; i <= array.length - chunk; i += chunk) {
 							Packet packet = new Packet(0, 0, server.getAddress(), clientPort(), Arrays.copyOfRange(array, i, (i + chunk)));
 							HttpFileServer.packets.add(packet);
@@ -411,10 +467,12 @@ public class HttpFileServer {
 					}
 					
 					else if (size <= 1013) {
+						timers.add(new Timer());
+						Packet packet = new Packet(0, 1L, packets.get(0).getPeerAddress(), packets.get(0).getPeerPort(), null);
+						packets.add(packet);
 						packets.get(1).setPayload(pw.toByteArray());
-						packets.get(1).setSequenceNumber(1L);
 						//channel.send(response.toBuffer(), router);
-						timer.scheduleAtFixedRate(new ServerTimerTask(1), 0, timeout);
+						timers.get(1).scheduleAtFixedRate(new ServerTimerTask(1), 0, timeout);
 						//Packet response = packet;
 						//response.setPayload(pw.toByteArray());
 						//channel.send(response.toBuffer(), router);
