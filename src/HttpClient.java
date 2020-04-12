@@ -281,7 +281,7 @@ public class HttpClient {
 			e.getMessage();
 		}
 		
-if (Client.getInstance().isHandShaking()){
+		if (Client.getInstance().isHandShaking()){
 			
 			Client.getInstance().getTimers().add(new Timer());
 			Client.getInstance().getTimers().add(new Timer());
@@ -310,17 +310,23 @@ if (Client.getInstance().isHandShaking()){
 
 		byte[] array = Client.getInstance().getPw().toByteArray();
 		int size = array.length;
-		int chunks = 0;
 		
-		for (int i = 10; i > 0; i--) {
-			if (size % i == 0) {
-				chunks = i;
-				break;
+			int chunks = 0;
+			
+			if (size <= 1013) {
+				for (int i = 10; i > 0; i--) {
+					if (size % i == 0) {
+						chunks = i;
+						break;
+					}
+				}
 			}
-		}
+			else {
+				chunks = (int) Math.ceil((double)size / (double)1013);
+			}
 		
 		int chunk = size / chunks;
-
+			
 		for (int i = 0; i <= array.length - chunk; i += chunk) {
 			Packet packet = new Packet(0, 0, Client.getInstance().getServer().getAddress(), Client.getInstance().getServer().getPort(), Arrays.copyOfRange(array, i, (i + chunk)));
 			Client.getInstance().getPackets().add(packet);
@@ -345,7 +351,8 @@ if (Client.getInstance().isHandShaking()){
 				
 				Client.getInstance().getTimers().get(i).scheduleAtFixedRate(new ClientTimerTask(i), 0, timeout);
 			}
-			
+			ArrayList<Packet> packets = Client.getInstance().getPackets();
+			ArrayList<Timer> timers = Client.getInstance().getTimers();
 			while (Client.getInstance().isSender()) {
 				try {
 					Thread.sleep(1);

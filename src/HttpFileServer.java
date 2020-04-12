@@ -130,9 +130,7 @@ public class HttpFileServer {
 	
 	public static void main(String[] args) {
 		
-		//ServerSocket serverSocket = null;
-		
-		boolean debugMsg = true;
+		boolean debugMsg = false;
 		String directory = "./";
 		int port = 8007;
 		final int routerPort = 3000;
@@ -169,14 +167,6 @@ public class HttpFileServer {
 				directory = args[i + 1];
 			}
 		}
-		
-		/*try {
-			serverSocket = new ServerSocket(port);
-		}
-		catch(IOException e) {
-			System.err.println("I/O error... Program will terminate");
-			System.exit(1);
-		}*/
 		
 		try {
 			server = new InetSocketAddress(InetAddress.getByName("localhost"), port);
@@ -216,15 +206,6 @@ public class HttpFileServer {
 				ok = false;
 				notFound = false;
 			}
-			/*
-			try {
-				reader = new ByteArrayInputStream(buffer.array());
-			}
-			catch (IOException e) {
-				System.err.println("I/O error... Program will terminate");
-				System.exit(1);
-			}
-			*/
 			
 			buffer.clear();
 			
@@ -264,13 +245,7 @@ public class HttpFileServer {
 			StringTokenizer tokens = null;
 			
 			if (buffer.array().length > 0) {
-				//try {
-					//str = new String(packet.getPayload(), "UTF-8").trim();
-					//System.out.println(str);
-				//} catch (UnsupportedEncodingException e3) {
-					//e3.printStackTrace();
-					//System.exit(1);
-				//}
+
 				lines = new ArrayList<String>();
 				tokens = new StringTokenizer(str, "\n");
 				
@@ -278,35 +253,7 @@ public class HttpFileServer {
 				{
 					lines.add(tokens.nextToken());
 				}
-			//}
-			/*try {
-				str = reader.read();
-				lines.add(str);
-			}
-			catch (IOException e) {
-				System.err.println("I/O error... Program will terminate");					
-				System.exit(1);
-			}
-				
-			while (str != null && str.length() > 0) {
-				try {
-					str = reader.readLine();
-					
-					if (str != null) {
-						lines.add(str);
-					}
-				} 
-				catch (IOException e) {
-					System.err.println("I/O error... Program will terminate");
-					System.exit(1);
-				}
-				
-			}
 			
-			if (lines.get(0) == null) {
-				continue;
-			}
-*/
 			tokens = null;
 			if (!str.isEmpty() && lines.get(0) != null) {
 				tokens = new StringTokenizer(lines.get(0), " ");
@@ -392,7 +339,6 @@ public class HttpFileServer {
 					packets.get(0).setPayload(pw.toByteArray());
 					packets.get(0).setSequenceNumber(0L);
 					packets.get(0).setType(0);
-					//channel.send(response.toBuffer(), router);
 					timers.add(new Timer());
 					timers.get(0).scheduleAtFixedRate(new ServerTimerTask(0), 0, timeout);
 					pw.reset();
@@ -414,7 +360,6 @@ public class HttpFileServer {
 					
 					packets.get(1).setPayload(pw.toByteArray());
 					packets.get(1).setSequenceNumber(1L);
-					//channel.send(response.toBuffer(), router);
 					timers.add(new Timer());
 					timers.get(1).scheduleAtFixedRate(new ServerTimerTask(1), timeout / 2, timeout);
 				}
@@ -447,7 +392,6 @@ public class HttpFileServer {
 							HttpFileServer.packets.add(packet);
 						}
 						
-						//Client.getInstance().setWindowSize((int)(Client.getInstance().getPackets().size() / 2));
 						
 						for (int i = 1; i < packets.size(); i++) {
 							packets.get(i).setSequenceNumber(Long.parseLong(new Integer(i).toString()));
@@ -471,11 +415,7 @@ public class HttpFileServer {
 						Packet packet = new Packet(0, 1L, packets.get(0).getPeerAddress(), packets.get(0).getPeerPort(), null);
 						packets.add(packet);
 						packets.get(1).setPayload(pw.toByteArray());
-						//channel.send(response.toBuffer(), router);
 						timers.get(1).scheduleAtFixedRate(new ServerTimerTask(1), 0, timeout);
-						//Packet response = packet;
-						//response.setPayload(pw.toByteArray());
-						//channel.send(response.toBuffer(), router);
 					}
 					
 					while (Client.getInstance().isReceiver() == true) {
@@ -509,34 +449,12 @@ public class HttpFileServer {
 					 Client.getInstance().setHandShaking(true);
 					 Client.getInstance().setConnectionTermination(false);
 					 
-					 continue;
+					 timers.clear();
+					 
 				}
 				
 				else if (method.equals("POST")) {
-					/*try {
-						str = reader.readLine();
-						lines.add(str);
-					}
-					catch (IOException e) {
-						System.err.println("I/O error... Program will terminate");					
-						System.exit(1);
-					}
-					
-					while (str != null && str.length() > 0) {
-						try {
-							str = reader.readLine();
-							
-							if (str != null) {
-								lines.add(str);
-							}
-						} 
-						catch (IOException e) {
-							System.err.println("I/O error... Program will terminate");
-							System.exit(1);
-						}
-						
-					}*/
-					
+				
 					File file = new File(directory + item);
 					try {
 						pwPost = new PrintWriter(file);
@@ -549,18 +467,29 @@ public class HttpFileServer {
 						notFound = true;
 						ok = false;
 					}
-					
-					//for (int i = 0; i < lines.size(); i++) {
-						//if (lines.get(i).equals("")) {
-						//	for (int j = i + 1; j < lines.size(); j++) 
-								for (int j = 0; j < lines.size(); j++){
-								pwPost.println(lines.get(j));
-							}
-						//	break;
-						//}
-					//}
+					for (int j = 0; j < lines.size(); j++) {
+							pwPost.println(lines.get(j));
+					}
 					
 					pwPost.close();
+					
+					Client.getInstance().setReceiver(false);
+					Client.getInstance().setConnectionTermination(true);
+					
+					packets.clear();
+					timers.clear();
+					timers.add(new Timer());
+					timers.get(0).schedule(new ServerTimerTask(), 0);
+					while (Client.getInstance().isConnectionTermination() == true) {
+						
+					}
+					
+					 Client.getInstance().setReceiver(false);
+					 Client.getInstance().setSender(false);
+					 Client.getInstance().setHandShaking(true);
+					 Client.getInstance().setConnectionTermination(false);
+					 
+					 timers.clear();
 					
 					}
 				}

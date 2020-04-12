@@ -11,6 +11,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.DatagramChannel;
+import java.nio.channels.IllegalBlockingModeException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Set;
@@ -122,7 +123,7 @@ public class ServerTimerTask extends java.util.TimerTask{
 				try {
 					HttpFileServer.getChannel().send(HttpFileServer.getPackets().get(index).toBuffer(), HttpFileServer.getRouter());
 				} catch (IOException e1) {
-					e1.printStackTrace();
+					
 				}
 				
 				try {
@@ -140,6 +141,8 @@ public class ServerTimerTask extends java.util.TimerTask{
 					key = HttpFileServer.getChannel().register(selector, OP_READ);
 				} catch (ClosedChannelException e1) {
 					e1.printStackTrace();
+				} catch (IllegalBlockingModeException e2) {
+					
 				}
 				try {
 					selector.select(timeout);
@@ -177,7 +180,11 @@ public class ServerTimerTask extends java.util.TimerTask{
 					e.printStackTrace();
 				}
 				}finally {
-					key.cancel();
+					try{
+						key.cancel();
+					} catch (NullPointerException e) {
+						
+					}
 				}
 			}
 			while (Client.getInstance().isConnectionTermination()) {
