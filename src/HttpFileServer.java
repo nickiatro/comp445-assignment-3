@@ -443,7 +443,7 @@ public class HttpFileServer {
 						
 					int chunk = size / chunks;
 						for (int i = 0; i <= array.length - chunk; i += chunk) {
-							Packet packet = new Packet(0, 0, server.getAddress(), clientPort(), Arrays.copyOfRange(array, i, (i + chunk)));
+							Packet packet = new Packet(0, 0, server.getAddress(), clientPort(), Arrays.copyOfRange(array, i, (i + chunk + 1)));
 							HttpFileServer.packets.add(packet);
 						}
 						
